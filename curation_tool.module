@@ -16,15 +16,22 @@ function curation_tool_help($path, $arg) {
 
 /**
  * Implements hook_menu
+ * @todo add access control
+ * 
  * @return array 
  */
 function curation_tool_menu() {
   $items = array();
   
-  $items['temp'] = array(
-    'title' => 'test',
-      'page callback' => print('yes'),
-    'type' => MENU_NORMAL_ITEM,
+  $items['admin/config/curation_tool'] = array(
+      'title' => 'Curation Tool',
+      'description' => 'Configuration for the Curation Tool Module',
+      'page callback' => 'drupal_get_form',
+      'file path' => 'sites/all/modules/curation_tool/forms',
+      'file' => 'admin_forms.php',
+      'page arguments' => array('curation_tool_admin_form'),
+      'access callback' => TRUE,
+      'type' => MENU_NORMAL_ITEM,
   );
   
   $items['user/project'] = array(
@@ -38,10 +45,12 @@ function curation_tool_menu() {
   $items['user/project/add'] = array(
       'title' => 'Create Project',
       'description' => 'Create a new data project.',
+      'file path' => 'sites/all/modules/curation_tool/forms',
+      'file' => 'project_forms.php',
       'page callback' => 'drupal_get_form',
-      'page arguments' => 'new_project_form',
-      'parent' => 'project',
+      'page arguments' => array('curation_tool_new_project_form'),
       'access callback' => TRUE,
+      'parent' => 'user/project',
       'type' => MENU_NORMAL_ITEM,
       'menu_name' => 'navigation',
   );
@@ -49,34 +58,17 @@ function curation_tool_menu() {
   return $items;
 }
 
-function new_project_form($form, &$form_state) {
-  print 'this worked anyway<br/>';
-  $form['upload_data'] = array(
-      '#type' => 'file',
-      '#title' => 't(Upload a file of data)',
-      '#description' => t('Upload a single file, or a zipped file for mutliple files.'),
-      );
-  
-  $form['input'] = array(
-      '#title' => t('test '),
-      '#type' => 'textfield',
-      '#required' => TRUE,
-  );
-  
-  $form['submit'] = array(
-      '#type' => 'submit',
-      '#value' => 'submit',
-  );
-  
-  return $form;
-}
-
 function curation_tool_permission() {
   return array(
+      'administer curation tool' => array(
+          'title' => t('Administer curation tool'),
+          'description' => t('Change settings for the curation too module'),
+          'restrict access' => TRUE,
+      ),
       'create any project' => array(
           'title' => t('Create any project'),
           'description' => t('Create a project for any account'),
-          'frestricted access' => TRUE,
+          'restrict access' => TRUE,
       ),
       'create own project' => array(
           'title' => t('Create own project'),
@@ -84,7 +76,7 @@ function curation_tool_permission() {
       'delete any project' => array(
           'title' => t('Delete any project'),
           'description' => t('Delete a project from any account'),
-          'frestricted access' => TRUE,
+          'restrict access' => TRUE,
       ),
       'delete own project' => array(
           'title' => t('Delete own projects'),
@@ -93,7 +85,7 @@ function curation_tool_permission() {
       'edit any project' => array(
           'title' => t('Edit any project'),
           'description' => t('Edit projects from any account'),
-          'frestricted access' => TRUE,
+          'restrict access' => TRUE,
       ),
       'edit own project' => array(
           'title' => t('Edit own projects'),
