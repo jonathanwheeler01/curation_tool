@@ -55,6 +55,17 @@ function curation_tool_menu() {
       'menu_name' => 'navigation',
   );
   
+  $items['users/project/add/meta'] = array(
+      'title' => 'Descriptive Metadata.',
+      'description' => 'Create descriptive metadata for the project using '.
+                        'the Qualified Dublin Core vocabulary.',
+      'file' => 'project_forms.php',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('curation_tool_new_project_metadata_form'),
+      'access callback' => TRUE,
+      'type' => MENU_CALLBACK,
+  );
+  
   return $items;
 }
 
