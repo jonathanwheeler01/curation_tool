@@ -1,0 +1,105 @@
+<?php
+
+/**
+ * Primary module for the curatoin tool package which serves as a front end for
+ * the data curation class libarary.
+ * 
+ * @author Robert Olendorf
+ * @license Apache Licesnse 2.0 
+ */
+
+function curation_tool_help($path, $arg) {
+  if($path == 'admin/help/#curation_tool') {
+    return t('A drupal frontend for the data curation library.');
+  }
+}
+
+/**
+ * Implements hook_menu
+ * @return array 
+ */
+function curation_tool_menu() {
+  $items = array();
+  
+  $items['temp'] = array(
+    'title' => 'test',
+      'page callback' => print('yes'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  $items['user/project'] = array(
+      'title' => 'Project',
+      'menu_name' => 'navigation',
+      'access callback' => TRUE,
+      'expanded' => TRUE,
+      'type' => MENU_NORMAL_ITEM,
+      );
+  
+  $items['user/project/add'] = array(
+      'title' => 'Create Project',
+      'description' => 'Create a new data project.',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => 'new_project_form',
+      'parent' => 'project',
+      'access callback' => TRUE,
+      'type' => MENU_NORMAL_ITEM,
+      'menu_name' => 'navigation',
+  );
+  
+  return $items;
+}
+
+function new_project_form($form, &$form_state) {
+  print 'this worked anyway<br/>';
+  $form['upload_data'] = array(
+      '#type' => 'file',
+      '#title' => 't(Upload a file of data)',
+      '#description' => t('Upload a single file, or a zipped file for mutliple files.'),
+      );
+  
+  $form['input'] = array(
+      '#title' => t('test '),
+      '#type' => 'textfield',
+      '#required' => TRUE,
+  );
+  
+  $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => 'submit',
+  );
+  
+  return $form;
+}
+
+function curation_tool_permission() {
+  return array(
+      'create any project' => array(
+          'title' => t('Create any project'),
+          'description' => t('Create a project for any account'),
+          'frestricted access' => TRUE,
+      ),
+      'create own project' => array(
+          'title' => t('Create own project'),
+      ),
+      'delete any project' => array(
+          'title' => t('Delete any project'),
+          'description' => t('Delete a project from any account'),
+          'frestricted access' => TRUE,
+      ),
+      'delete own project' => array(
+          'title' => t('Delete own projects'),
+          'description' => t('Delete a project from a user&apos;s own account'),
+      ),
+      'edit any project' => array(
+          'title' => t('Edit any project'),
+          'description' => t('Edit projects from any account'),
+          'frestricted access' => TRUE,
+      ),
+      'edit own project' => array(
+          'title' => t('Edit own projects'),
+          'description' => t('Edit a project from a user&apos;s own account'),
+      ),
+  );
+}
+
+?>
