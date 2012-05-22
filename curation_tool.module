@@ -43,7 +43,7 @@ function curation_tool_menu() {
       );
   
   $items['user/project/add'] = array(
-      'title' => 'Create Project',
+      'title' => 'New Project',
       'description' => 'Create a new data project.',
       'file path' => 'sites/all/modules/curation_tool/forms',
       'file' => 'project_forms.php',
