@@ -93,6 +93,15 @@ function curation_tool_new_project_form($form, &$form_state) {
       '#maxlength' => 256,
   );
   
+  $form['descriptive_metadata']['subject'] = array(
+      '#title' => t('Keywords'),
+      '#description' => t('Enter keywords or phrases to aid in searching for your data separated by commas.'.
+              'separated by commas.'),
+      '#type' => 'textfield',
+      '#length' => 80,
+      '#maxlength' => 256,
+  );
+  
   $form['descriptive_metadata']['created'] = array(
       '#title' => t('Date Created'),
       '#description' => t('Enter the date the data was created <em>(YYYY-MM-DD)</em>'),
@@ -120,12 +129,45 @@ function curation_tool_new_project_form($form, &$form_state) {
       '#resizeable' => TRUE,
   );
   
-  $form['action']['cancel'] = array(
-      '#type' => 'submit',
-      '#value' => 'Cancel',
+  $form['license_metadata'] = array(
+      '#type' => 'fieldset',
+      '#title' => 'Rights and Licensing Information',
+      '#description' => 'Use this section to document any other parties can claim '.
+              'intellectual property rights over your entire dataset. If only '.
+              'parts of your dataset can be claimed, you may document that specifically '.
+              'for those files or groups of file later.',
   );
   
-  $form['action']['next'] = array(
+  $form['license_metadata']['license'] = array(
+      '#title' => t('Licensing Information'),
+      '#description' => t('Describe how you want your data licensed.'),
+      '#type' => 'textarea',
+      '#cols' => 80,
+      '#rows' => 10,
+      '#default_value' => 'This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 Unported License.',
+      '#resizeable' => TRUE,
+  );
+  
+  $form['license_metadata']['rights'] = array(
+      '#title' => t('Rights Information'),
+      '#description' => t('If any other parties can claim rights over this data set.' ),
+      '#type' => 'textarea',
+      '#cols' => 80,
+      '#rows' => 10,
+      '#resizeable' => TRUE,
+  );
+  
+  
+  
+  $form['license_metadata']['rightsholder'] = array(
+      '#title' => t('Rights Information'),
+      '#description' => t('List the rights holders other than creators and contributors.'),
+      '#type' => 'textfield',
+      '#length' => 80,
+      '#maxlength' => 200,
+  );
+  
+  $form['action']['submit'] = array(
       '#type' => 'submit',
       '#value' => 'Submit',
   );
