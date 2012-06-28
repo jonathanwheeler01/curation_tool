@@ -5,4 +5,101 @@
    * @author Robert Olendorf
    * @license Apache License 2.0 
    */
+
+/**
+ * Implement hook_enable. Programatically creates roles and enables permissions
+ * as a default. 
+ */
+function curation_tool_enable() {
+  // Roles needed for the curation tool
+  $roleNames = array('curator', 'repository administrator');
+  
+  // Permissions for this module for each role
+  $permissions = array(
+      'repository administrator' => array(
+          'administer curation tool',
+          'create any project',
+          'create own project',
+          'delete any project',
+          'delete own project',
+          'edit any project',
+          'edit own project',
+      ),
+      'curator' => array(
+          'create any project',
+          'create own project',
+          'delete any project',
+          'delete own project',
+          'edit any project',
+          'edit own project',
+      ),
+      'authenticated user' => array(
+          'create own project',
+          'delete own project',
+          'edit own project',
+      ),
+  );
+  
+  // Create the roles.
+  foreach($roleNames as $roleName) {
+    // Checks if the role already exists to avoid stomping
+    if(!user_role_load_by_name($roleName)) {
+      $role = new stdClass();
+      $role->name = $roleName;
+      user_role_save($role);
+      
+      // Grant permissions to module specific roles
+      $role = user_role_load_by_name($roleName);
+      user_role_grant_permissions($role->rid, $permissions[$roleName]);
+    }
+  }
+  
+  // Grant permissions to authenticated users.
+  user_role_grant_permissions(DRUPAL_AUTHENTICATED_RID, $permissions['authenticated user']);
+}
+
+/**
+ * Implement hook_disable. Removes roles and permissions used by the module. 
+ */
+function curation_tool_disable() {
+  // Roles needed for the curation tool
+  $roleNames = array('repository administrator', 'curator');
+  
+  // Permissions for this module for each role
+   $permissions = array(
+      'repository administrator' => array(
+          'administer curation tool',
+          'create any project',
+          'create own project',
+          'delete any project',
+          'delete own project',
+          'edit any project',
+          'edit own project',
+      ),
+      'curator' => array(
+          'create any project',
+          'create own project',
+          'delete any project',
+          'delete own project',
+          'edit any project',
+          'edit own project',
+      ),
+      'authenticated user' => array(
+          'create own project',
+          'delete own project',
+          'edit own project',
+      ),
+  );
+  
+   // Revoke permissions then remove the role
+  foreach($roleNames as $roleName) {
+    $role = user_role_load_by_name($roleName);
+    user_role_revoke_permissions($role->rid, $permissions[$roleName]);
+    
+    user_role_delete($roleName);
+  }
+  
+  // Revoke any permissions for authenticated users.
+  user_role_revoke_permissions(DRUPAL_AUTHENTICATED_RID, $permissions['authenticated user']);
+}
 ?>
