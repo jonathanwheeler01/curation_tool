@@ -46,7 +46,7 @@ function curation_tool_menu() {
       'title' => 'New Project',
       'description' => 'Create a new data project.',
       'file path' => 'sites/all/modules/curation_tool/forms',
-      'file' => 'project_forms.php',
+      'file' => 'create_project_forms.php',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('curation_tool_new_project_form'),
       'access callback' => TRUE,
