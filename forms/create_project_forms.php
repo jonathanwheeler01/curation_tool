@@ -39,6 +39,38 @@ function curation_tool_new_project_form($form, &$form_state) {
       '#Description' => t('Upload a new data set to process or choose an existing data set.'),
   );
   
+  // Get a list of the usernames for the drop down list
+  $usernames = db_select('users', 'u')
+                    ->fields('u', array('name'))
+                    ->execute();
+  
+  $options = array();
+  
+  while($name = $usernames->fetchAssoc()) {
+    $userInfo = user_load_by_name($name);
+    $firstName = field_get_items('user', $userInfo, 'field_first_name');
+    $lastName = field_get_items('user', $userInfo, 'field_last_name');
+    $options[] = $firstName[0]['value'].' '.$lastName[0]['value'].' - '.$name['name'];
+  }
+  
+  if(empty($form_state['values']['username'])) {
+    $firstName = field_get_items('user', $user, 'field_first_name');
+    $lastName = field_get_items('user', $user, 'field_last_name');
+    $default = $firstName[0]['value'].' '.$lastName[0]['value'].' - '.$user->name;
+  }
+  else {    
+    $default = $form_state['values']['username'];
+  }
+  
+  $form['data']['username'] = array(
+      '#title' => 'Banner ID of the Project Owner',
+      '#type' => 'select',
+      '#default_value' => $default,
+      '#access' => user_access('create any project'),
+      '#required' => TRUE,
+      '#options' => $options,
+  ); 
+  
   $form['data']['upload_data'] = array(
       '#type' => 'file',
       '#title' => t('Upload and Process New Data'),
@@ -93,45 +125,6 @@ function curation_tool_new_project_form($form, &$form_state) {
       '#required' => TRUE,
   );
   
-  $form['project_identifiers'] = array(
-      '#title' => t('Project Information'),
-      '#type' => 'fieldset',
-  );
-  
-  if(empty($form_state['values']['username'])) {
-    $username = $user->name;
-  }
-  else {
-    $username = $form_state['values']['username'];
-  }
-  
-  $form['project_identifiers']['username'] = array(
-      '#title' => 'Banner ID',
-      '#type' => 'textfield',
-      '#length' => 60,
-      '#default_value' => $username,
-      '#access' => user_access('create any project'),
-      '#required' => TRUE,
-  );
-  
-  // Get the department
-  if(empty($form_state['value']['department'])) {
-    $department = field_get_items('user', $user, 'field_department');
-    $department = entity_load('taxonomy_term', array($department[0]['tid']));
-    $department = $department[1]->name;
-  }
-  else {
-    $department = $form_state['values']['department'];
-  }
-  
-  $form['project_identifiers']['department'] = array(
-      '#title' => 'Department',
-      '#type' => 'textfield',
-      '#length' => 60,
-      '#default_value' => $department,
-      '#required' => TRUE,
-  );  
-  
   $form['next'] = array(
       '#type' => 'submit',
       '#value' => 'Next >> ',
@@ -172,7 +165,6 @@ function curation_tool_new_project_form_page_two($form, &$form_state) {
               'entire data set'),
       '#type' => 'fieldset',
   );
-
   
   $form['descriptive_metadata']['title'] = array(
       '#title' => t('Title'),
@@ -181,7 +173,9 @@ function curation_tool_new_project_form_page_two($form, &$form_state) {
       '#length' => 80,
       '#maxlength' => 120,
       '#required' => TRUE,
-      '#default_value' => $form_state['values']['creator'],
+      '#default_value' => 
+            array_key_exists('title', $form_state['values']) ? 
+                                            $form_state['values']['title'] : '',
   );
   
   $form['descriptive_metadata']['creator'] = array(
@@ -192,7 +186,9 @@ function curation_tool_new_project_form_page_two($form, &$form_state) {
       '#length' => 80,
       '#maxlength' => 256,
       '#required' => TRUE,
-      '#default_value' => $form_state['values']['creator'],
+      '#default_value' => 
+            array_key_exists('creator', $form_state['values']) ? 
+                                            $form_state['values']['creator'] : '',
   );
   
   $form['descriptive_metadata']['contributor'] = array(
@@ -202,7 +198,9 @@ function curation_tool_new_project_form_page_two($form, &$form_state) {
       '#type' => 'textfield',
       '#length' => 80,
       '#maxlength' => 256,
-      '#default_value' => $form_state['values']['contributor'],
+      '#default_value' => 
+            array_key_exists('contributor', $form_state['values']) ? 
+                                            $form_state['values']['contributor'] : '',
   );
   
   $form['descriptive_metadata']['subject'] = array(
@@ -212,7 +210,9 @@ function curation_tool_new_project_form_page_two($form, &$form_state) {
       '#type' => 'textfield',
       '#length' => 80,
       '#maxlength' => 256,
-      '#default_value' => $form_state['values']['subject'],
+      '#default_value' => 
+            array_key_exists('subject', $form_state['values']) ? 
+                                            $form_state['values']['subject'] : '',
   );
   
   $form['descriptive_metadata']['dataCreated'] = array(
@@ -223,7 +223,9 @@ function curation_tool_new_project_form_page_two($form, &$form_state) {
       '#maxlength' => 256,
       '#default_value' => date('Y-m-d', time()),
       '#required' => TRUE,
-      '#default_value' => $form_state['values']['dataCreated'],
+      '#default_value' => 
+            array_key_exists('dataCreated', $form_state['values']) ? 
+                                            $form_state['values']['dataCreated'] : '',
   );
   
   $form['descriptive_metadata']['abstract'] = array(
@@ -233,7 +235,9 @@ function curation_tool_new_project_form_page_two($form, &$form_state) {
       '#cols' => 80,
       '#rows' => 10,
       '#resizeable' => TRUE,
-      '#default_value' => $form_state['values']['abstract'],
+      '#default_value' => 
+            array_key_exists('abstract', $form_state['values']) ? 
+                                            $form_state['values']['abstract'] : '',
   );
   
   $form['descriptive_metadata']['description'] = array(
@@ -243,7 +247,9 @@ function curation_tool_new_project_form_page_two($form, &$form_state) {
       '#cols' => 80,
       '#rows' => 10,
       '#resizeable' => TRUE,
-      '#default_value' => $form_state['values']['description'],
+      '#default_value' => 
+            array_key_exists('description', $form_state['values']) ? 
+                                            $form_state['values']['description'] : '',
   );
   
   $form['back'] = array(

@@ -11,6 +11,9 @@
  * as a default. 
  */
 function curation_tool_enable() {
+  // Create the database table(s)
+  drupal_install_schema('curation_tool');
+  
   // Roles needed for the curation tool
   $roleNames = array('curator', 'repository administrator');
   
@@ -62,6 +65,9 @@ function curation_tool_enable() {
  * Implement hook_disable. Removes roles and permissions used by the module. 
  */
 function curation_tool_disable() {
+  // Remove the database table(s)
+  drupal_uninstall_schema('curation_tool');
+  
   // Roles needed for the curation tool
   $roleNames = array('repository administrator', 'curator');
   
@@ -101,5 +107,46 @@ function curation_tool_disable() {
   
   // Revoke any permissions for authenticated users.
   user_role_revoke_permissions(DRUPAL_AUTHENTICATED_RID, $permissions['authenticated user']);
+}
+
+/**
+ * Implements hook_schema
+ * @return array 
+ */
+function curation_tool_schema() {
+  $schema['curation_tool'] = array(
+      'description' => 'Stores basic information about existing data sets.',
+      'fields' => array(
+          'pid' => array(
+              'description' => 'Primary key for a project',
+              'type' => 'serial',
+              'unsigned' => TRUE,
+              'not null' => TRUE,
+          ),
+          'uid' => array(
+              'description' => 'User ID of the owner of the project',
+              'type' => 'int',
+              'not null' => TRUE,
+          ),
+          'name' => array(
+              'description' => 'The short name for a project, typically the first directory name.',
+              'type' => 'varchar',
+              'length' => 64,
+              'not null' => TRUE,
+          ),
+          'title' => array(
+              'description' => 'Long title for the project, suitable for display',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+          ),
+      ),
+      'unique_keys' => array(
+          'uid_name' => array('uid', 'name'),
+      ),
+      'primary key' => array('pid'),
+  );
+  
+  return $schema;
 }
 ?>
