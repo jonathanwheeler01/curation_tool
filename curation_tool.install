@@ -11,8 +11,25 @@
  * as a default. 
  */
 function curation_tool_enable() {
+  $oldvar = variable_get('user_register');
+  variable_set('data_curation_old_user_register', $oldvar);
+  variable_set('user_register', 1);
+  variable_set('data_curation_repository_location', NULL);
+  
   // Create the database table(s)
   drupal_install_schema('curation_tool');
+    
+  // Get the fields and field instances from the utility funcitons
+  $fields = _custom_user_fields();
+  $instances = _custom_user_instances();
+  
+  // create the fields and field instances for the modules
+  foreach($fields as $fieldName => $field) {
+    if(!field_info_field($fieldName)) {
+      field_create_field($field);
+      field_create_instance($instances[$fieldName]);
+    }
+  }
   
   // Roles needed for the curation tool
   $roleNames = array('curator', 'repository administrator');
@@ -65,8 +82,19 @@ function curation_tool_enable() {
  * Implement hook_disable. Removes roles and permissions used by the module. 
  */
 function curation_tool_disable() {
+  variable_set('user_register', variable_get('data_curation_old_user_register'));
+  variable_del('data_curation_old_user_register');
+  variable_del('data_curation_repository_location');
+  
   // Remove the database table(s)
   drupal_uninstall_schema('curation_tool');
+  
+  // Remove custom fields from user profile
+  foreach (_custom_user_fields() as $fieldName => $field) {
+    field_delete_field($fieldName);
+  }
+  
+  field_purge_batch(1000);
   
   // Roles needed for the curation tool
   $roleNames = array('repository administrator', 'curator');
@@ -148,5 +176,107 @@ function curation_tool_schema() {
   );
   
   return $schema;
+}
+
+/**
+ * Just returns an array of the field data for all the custom fields. Makes the
+ * code above much cleaner. 
+ */
+function _custom_user_fields() {
+  $fields = array(
+      'field_first_name' => array(
+          'field_name' => 'field_first_name',
+          'label' => t('First Name'),
+          'type' => 'text',
+          'cardinality' => 1,
+          'settings' => array(
+              'required' => TRUE,
+              'max_length' => 64,
+              ),
+          ),
+      'field_last_name' => array(
+          'field_name' => 'field_last_name',
+          'label' => t('Last Name'),
+          'type' => 'text',
+          'cardinality' => 1,
+          'settings' => array(
+              'required' => TRUE,
+              'max_length' => 64,
+              ),
+          ),
+      'field_department' => array(
+          'field_name' => 'field_department',
+          'label' => t('Department'),
+          'type' => 'text',
+          'cardinality' => 1,
+          'settings' => array(
+              'required' => TRUE,
+              'max_length' => 128,
+              ),
+          ),
+  );
+  
+  return $fields;
+}
+
+/**
+ * Just returns an array of the instance data for all the custom fields. Makes the
+ * code above much cleaner. 
+ */
+function _custom_user_instances() {
+  $instances = array(
+      'field_first_name' => array(
+          'field_name' => 'field_first_name',
+          'entity_type' => 'user',
+          'label' => t('First Name'),
+          'bundle' => 'user',
+          'cardinality' => 1,
+          'required' => TRUE,
+          'widget' => array(
+              'weight' => '-13',
+              'type' => 'text_textfield',
+              'settings' => array('size' => 60),
+              ),
+          'settings' => array(
+              'text_processing' => '0',
+              'user_register_form' => TRUE,
+              ),
+          ),
+      'field_last_name' => array(
+          'field_name' => 'field_last_name',
+          'entity_type' => 'user',
+          'label' => t('Last Name'),
+          'bundle' => 'user',
+          'cardinality' => 1,
+          'required' => TRUE,
+          'widget' => array(
+              'weight' => '-12',
+              'type' => 'text_textfield',
+              'settings' => array('size' => 60),
+              ),
+          'settings' => array(
+              'text_processing' => '0',
+              'user_register_form' => TRUE,
+              ),
+          ),
+      'field_department' => array(
+          'field_name' => 'field_department',
+          'entity_type' => 'user',
+          'label' => t('Department'),
+          'bundle' => 'user',
+          'cardinality' => 1,
+          'required' => TRUE,
+          'widget' => array(
+              'weight' => '-11',
+              'type' => 'text_textfield',
+              'settings' => array('size' => 60),
+              ),
+          'settings' => array(
+              'text_processing' => '0',
+              'user_register_form' => TRUE,
+              ),
+          ),
+      );
+  return $instances;
 }
 ?>

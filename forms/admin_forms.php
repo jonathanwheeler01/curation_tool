@@ -16,11 +16,24 @@ function curation_tool_admin_form($form, &$form_state) {
   $form['repository_root'] = array(
       '#type' => 'textfield',
       '#title' => t('Repository Root Directory'),
-      '#default_value' => variable_get('repository_root', '/repository'),
+      '#default_value' => variable_get('data_curation_repository_location'),
       '#description' => t('The top level directory for all projects in the repository.'),
-      '#size' => 80,
-      '#maxlength' => 256,
-      '#require' => TRUE,
+      '#size' => 60,
+      '#maxlength' => 255,
+      '#required' => TRUE,
+  );
+  
+  $form['help_email'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Help Email'),
+      '#default_value' => variable_get(
+              'data_curation_help_email', 
+              variable_get('site_mail')
+              ),
+      '#description' => t('An email address to use when a user needs help.'),
+      '#size' => 60,
+      '#maxlength' => 255,
+      '#required' => TRUE,
   );
   
   $form['submit'] = array(
@@ -43,7 +56,7 @@ function curation_tool_admin_form_validate($form, &$form_state) {
 }
 
 function curation_tool_admin_form_submit($form, &$form_state) {
-  variable_set('repository_root', $form_state['values']['repository_root']);
+  variable_set('data_curation_repository_location', $form_state['values']['repository_root']);
   drupal_set_message(t('The settings have been save.'));
 }
 ?>
