@@ -149,10 +149,6 @@ function curation_tool_new_project_form_next($form, &$form_state) {
   // Ensure that values for each page are carried forward. 
   $form_state['page_values'][$form_state['page']] = $form_state['values'];
  
-//  if (!empty($form_state['page_values'][$form_state['page']+1])) {
-//    $form_state['values'] = $form_state['page_values'][$form_state['page']+1];
-//  }
-  
   $submitFunction = 'curation_tool_new_project_page_'.$form_state['page'].'_submit';
   $submitFunction($form, $form_state);
   
@@ -298,6 +294,12 @@ function _handle_error($formElement, $userMessage, $adminMessage, $line, $watchd
     watchdog('Curation Tool', $body, NULL, $watchdogError);
 }
 
+/**
+ *
+ * @param type $form
+ * @param type $form_state
+ * @return string 
+ */
 function curation_tool_new_project_form_page_2($form, &$form_state) {
   $form['descriptive_metadata'] = array(
       '#title' => t('Descriptive Information'),
@@ -424,8 +426,19 @@ function curation_tool_new_project_page_2_validate($form, &$form_state) {
   
 }
 
+/**
+ *
+ * @param type $form
+ * @param type $form_state 
+ */
 function curation_tool_new_project_page_2_submit($form, &$form_state){}
 
+/**
+ *
+ * @param type $form
+ * @param type $form_state
+ * @return string 
+ */
 function curation_tool_new_project_form_page_3($form, &$form_state) {
   $form['license_metadata'] = array(
       '#type' => 'fieldset',
@@ -479,11 +492,28 @@ function curation_tool_new_project_form_page_3($form, &$form_state) {
   return $form;
 }
 
+/**
+ *
+ * @param type $form
+ * @param type $form_state 
+ */
 function curation_tool_new_project_page_3_validate($form, &$form_state) {
   
 }
+
+/**
+ *
+ * @param type $form
+ * @param type $form_state 
+ */
 function curation_tool_new_project_page_3_submit($form, &$form_state){}
 
+/**
+ *
+ * @param type $form
+ * @param type $form_state
+ * @return array 
+ */
 function curation_tool_new_project_form_page_4($form, &$form_state) {
     $form['assurances'] = array(
       '#title' => t('Assurances'),
@@ -538,12 +568,28 @@ function curation_tool_new_project_form_page_4($form, &$form_state) {
   return $form;
 }
 
+/**
+ *
+ * @param type $form
+ * @param type $formstate 
+ */
 function curation_tool_new_project_page_4_validate($form, &$formstate) {
   
 }
 
+/**
+ *
+ * @param type $form
+ * @param type $form_state 
+ */
 function curation_tool_new_project_page_4_submit($form, &$form_state){
-   
+  
+  // gather up the page values and combine them into the values index.
+  foreach($form_state['page_values'] as $values) {
+    $form_state['values'] = array_merge($form_state['values'], $values);
+  } 
+  
+  
   $userMessage = 'There was an error uploading your data. The geeks have been'.
         'notified and unleashed! Please try again '.
         'a few minutes. If the problem persists please '.
