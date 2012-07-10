@@ -13,7 +13,7 @@
  * @return array 
  */
 function curation_tool_admin_form($form, &$form_state) {
-  $form['repository_root'] = array(
+  $form['data_curation_repository_root'] = array(
       '#type' => 'textfield',
       '#title' => t('Repository Root Directory'),
       '#default_value' => variable_get('data_curation_repository_location'),
@@ -23,7 +23,7 @@ function curation_tool_admin_form($form, &$form_state) {
       '#required' => TRUE,
   );
   
-  $form['help_email'] = array(
+  $form['data_curation_help_email'] = array(
       '#type' => 'textfield',
       '#title' => t('Help Email'),
       '#default_value' => variable_get(
@@ -45,18 +45,24 @@ function curation_tool_admin_form($form, &$form_state) {
 }
 
 function curation_tool_admin_form_validate($form, &$form_state) {
-  if($form_state['values']['repository_root'] == '') {
-    form_set_error('repository_root', t('The repository root must not be empty.'));
+  if($form_state['values']['data_curation_repository_root'] == '') {
+    form_set_error('data_curation_repository_root', t('The repository root must not be empty.'));
   }
   
-  if(!is_dir($form_state['values']['repository_root'])) {
-    $values = array('@value' => $form_state['values']['repository_root']);
-    form_set_error('repository_root', t('@value is not a valid directory.', $values));
+  if(!is_dir($form_state['values']['data_curation_repository_root'])) {
+    $values = array('@value' => $form_state['values']['data_curation_repository_root']);
+    form_set_error('data_curation_repository_root', t('@value is not a valid directory.', $values));
+  }
+  
+  if(!valid_email_address($form_state['values']['data_curation_help_email'])) {
+    $values = array('@value' => $form_state['values']['data_curation_help_email']);
+    form_set_error('data_curation_help_email', t('@value is not a valid email address.', $values));
   }
 }
 
 function curation_tool_admin_form_submit($form, &$form_state) {
-  variable_set('data_curation_repository_location', $form_state['values']['repository_root']);
+  variable_set('data_curation_repository_location', $form_state['values']['data_curation_repository_root']);
+  variable_set('data_curation_help_email', $form_state['values']['data_curation_help_email']);
   drupal_set_message(t('The settings have been save.'));
 }
 ?>

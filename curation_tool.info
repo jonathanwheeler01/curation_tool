@@ -7,5 +7,6 @@ files[] = curation_tool.install
 files[] = forms/create_project_forms.php
 files[] = forms/admin_forms.php
 files[] = classes/XFDUSetup.php
+files[] = classes/DublinCore.php
 configure = admin/config/curation_tool
 php = 5.3
