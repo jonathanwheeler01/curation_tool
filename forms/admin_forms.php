@@ -36,6 +36,19 @@ function curation_tool_admin_form($form, &$form_state) {
       '#required' => TRUE,
   );
   
+  $form['data_curation_processor_url'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Data Curation URL'),
+      '#default_value' => variable_get(
+              'data_curation_processor_url', 
+              variable_get('data_curation_processor_url')
+              ),
+      '#description' => t('The URL to the Data Curation middleware component.'),
+      '#size' => 60,
+      '#maxlength' => 255,
+      '#required' => TRUE,
+  );
+  
   $form['submit'] = array(
       '#type' => 'submit',
       '#value' => t('Save Settings'),
@@ -63,6 +76,7 @@ function curation_tool_admin_form_validate($form, &$form_state) {
 function curation_tool_admin_form_submit($form, &$form_state) {
   variable_set('data_curation_repository_location', $form_state['values']['data_curation_repository_root']);
   variable_set('data_curation_help_email', $form_state['values']['data_curation_help_email']);
+  variable_set('data_curation_processor_url', $form_state['values']['data_curation_processor_url']);
   drupal_set_message(t('The settings have been save.'));
 }
 ?>

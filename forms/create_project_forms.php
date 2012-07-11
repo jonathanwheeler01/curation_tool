@@ -149,6 +149,7 @@ function curation_tool_new_project_form_next($form, &$form_state) {
   // Ensure that values for each page are carried forward. 
   $form_state['page_values'][$form_state['page']] = $form_state['values'];
  
+  // Call the submit function for this form to handle any processing required.
   $submitFunction = 'curation_tool_new_project_page_'.$form_state['page'].'_submit';
   $submitFunction($form, $form_state);
   
@@ -237,8 +238,8 @@ function curation_tool_new_project_page_1_validate($form, &$form_state) {
   else {
     $message = 'There was a problem uploading your file. Ensure you chose a valid '.
             'file and that your your file size is below the maximum allowable size of '.
-            (file_upload_max_size()/1048576).'MB. If your file size is to large'.
-            'or if you continue to have other problems please don&apos;t hesitate'.
+            (file_upload_max_size()/1048576).'MB. If your file size is to large '.
+            'or if you continue to have other problems please don&apos;t hesitate '.
             'to <a href="mailto:'.  variable_get('data_curation_help_email').'">contact us</a>.';
     form_set_error('data][upload_data', $message);
   }
@@ -384,6 +385,64 @@ function curation_tool_new_project_form_page_2($form, &$form_state) {
 }
 
 /**
+ * Returns a DOMDocument with a wrapper element containing the namespaces
+ * for dublin core elements and dublin core tersm.
+ * @return \DOMDocument 
+ */
+function _get_dublin_core_wrapper() {
+  
+  $dc = new DublinCore();
+  // Create the document for the descriptive metadata. Use a wrapper to collect
+  // the elements, which isn't technically required, but makes handling easier.
+  $doc = new DOMDocument('1.0', 'UTF-8');
+  $doc->appendChild($wrapper = $doc->createElement('wrapper'));
+  
+  // Add the dublin core namespaces to the wrapper.
+  $wrapper->setAttributeNS(
+          'http://www.w3.org/2000/xmlns/', 
+          'xmlns:'.$dc->elementsPrefix, 
+          $dc->elementsURI);
+  $wrapper->setAttributeNS(
+          'http://www.w3.org/2000/xmlns/', 
+          'xmlns:'.$dc->termsPrefix, 
+          $dc->termsURI);
+  
+  return $doc;
+}
+
+function _get_header_meta(&$form_state) {
+  $dc = new DublinCore();
+  $doc = new DOMDocument('1.0', 'UTF-8');
+  $doc = _get_dublin_core_wrapper();
+  $list = $doc->getElementsByTagName('wrapper');
+  $wrapper = $list->item(0);
+  
+  if($form_state['values']['curator'] != '') {
+    $curators = explode('|', $form_state['values']['curator']);
+    foreach($curators as $curator) {
+      $wrapper->appendChild(
+              $newElement = $doc->createElementNS(
+                      $dc->elementsURI, 
+                      $dc->elementsPrefix.':contributor')
+              );
+      $newElement->appendChild($doc->createTextNode($curator));
+    }
+  }
+  
+  if($form_state['values']['metaCreateDate'] != '') {
+      $wrapper->appendChild(
+              $newElement = $doc->createElementNS(
+                      $dc->termsURI, 
+                      $dc->termsPrefix.':created')
+              );
+      $newElement->appendChild(
+              $doc->createTextNode($form_state['values']['metaCreateDate'])
+              );
+  }
+  return $doc->saveXML();
+}
+
+/**
  * Returns all currently set dublin core metadata elements from the form as 
  * XML serialzed into a string. The elements must be findable in 
  * <code>$form_state['values'] and be named by their dublin core name in lower case.
@@ -404,17 +463,7 @@ function _get_descriptive_meta(&$form_state) {
   // Create the document for the descriptive metadata. Use a wrapper to collect
   // the elements, which isn't technically required, but makes handling easier.
   $doc = new DOMDocument('1.0', 'UTF-8');
-  $doc->appendChild($wrapper = $doc->createElement('wrapper'));
-  
-  // Add the dublin core namespaces to the wrapper.
-  $wrapper->setAttributeNS(
-          'http://www.w3.org/2000/xmlns/', 
-          'xmlns:'.$dc->elementsPrefix, 
-          $dc->elementsURI);
-  $wrapper->setAttributeNS(
-          'http://www.w3.org/2000/xmlns/', 
-          'xmlns:'.$dc->termsPrefix, 
-          $dc->termsURI);
+  $doc  = _get_dublin_core_wrapper();
   
   // handle the dc elements
   foreach($elements as $name => $value) {
@@ -644,6 +693,7 @@ function curation_tool_new_project_form_page_4($form, &$form_state) {
  * @param type $formstate 
  */
 function curation_tool_new_project_page_4_validate($form, &$form_state) {
+  $message = '';
   if(
           !$form_state['values']['assureCopyright'] || 
           !$form_state['values']['releaseCopyright'] || 
@@ -658,6 +708,7 @@ function curation_tool_new_project_page_4_validate($form, &$form_state) {
 /**
  * Handles submission for form 4 as wel as all submission data not previously
  * handled.
+ * @todo redirect form based on response
  * @param type $form
  * @param type $form_state 
  */
@@ -667,6 +718,20 @@ function curation_tool_new_project_page_4_submit($form, &$form_state){
     $form_state['values'] = array_merge($form_state['values'], $values);
   } 
   
+//  $postData = array();
+//  $postData['repository'] = variable_get('data_curation_repository_location');
+//  $postData['account'] = $form_state['values']['username']; 
+//  $postData['project'] = $form_state['project']['name'];
+//  $postData['xmlData'] = _get_header_meta($form_state);
+//  $postData['descriptiveMetadata'] = _get_descriptive_meta($form_state);
+  
+  // Right now this just sends a blind request and assumes it works. This should
+  // be fixed.
+//  $request = new SimpleHTTPRequest();
+//  $response = $request->set_url(variable_get('data_curation_processor_url'))
+//          ->set_method('POST')
+//          ->add_headers(array('content-type'=>'application/x-www-form-urlencoded'))
+//          ->send_request();
   
 }
 
@@ -701,6 +766,7 @@ function _handle_uploaded_data(&$form_state) {
   }
   
   $wrapper = implode('.', array_slice(explode('.', $file->filename), 0, -1));
+  $form_state['project']['name'] = $wrapper;
   
   // Assume that the user knows what she is doing and delete any existing
   // directories and files.
