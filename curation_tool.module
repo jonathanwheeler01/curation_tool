@@ -43,12 +43,12 @@ function curation_tool_menu() {
       );
   
   $items['user/project/add'] = array(
-      'title' => 'New Project',
+      'title' => 'Process Project',
       'description' => 'Create a new data project.',
       'file path' => 'sites/all/modules/curation_tool/forms',
-      'file' => 'create_project_forms.php',
+      'file' => 'new_project_wizard.php',
       'page callback' => 'drupal_get_form',
-      'page arguments' => array('curation_tool_new_project_form'),
+      'page arguments' => array('form_new_project_wizard'),
       'access callback' => TRUE,
       'parent' => 'user/project',
       'type' => MENU_NORMAL_ITEM,
@@ -61,7 +61,7 @@ function curation_tool_menu() {
                         'the Qualified Dublin Core vocabulary.',
       'file' => 'project_forms.php',
       'page callback' => 'drupal_get_form',
-      'page arguments' => array('curation_tool_new_project_metadata_form'),
+      'page arguments' => array('project_metadata_form'),
       'access callback' => TRUE,
       'type' => MENU_CALLBACK,
   );

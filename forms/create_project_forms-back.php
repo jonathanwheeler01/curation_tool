@@ -15,7 +15,7 @@
  * @param array $form_state
  * @return array 
  */
-function curation_tool_new_project_form($form, &$form_state) {
+function new_project_form($form, &$form_state) {
   
   // Initialize the page if needed to avoid invalid index errors
   if(empty($form_state['page'])) {
@@ -23,7 +23,7 @@ function curation_tool_new_project_form($form, &$form_state) {
   }
 
   // Designate the reaquired form and call it
-  $formName = 'curation_tool_new_project_form_page_'.$form_state['page'];
+  $formName = 'new_projectform_page_'.$form_state['page'];
   return $formName($form, $form_state);
 }
 
@@ -34,7 +34,7 @@ function curation_tool_new_project_form($form, &$form_state) {
  * @param type $form_state
  * @return array returns the form
  */
-function curation_tool_new_project_form_page_1($form, &$form_state) {    
+function new_project_form_page_1($form, &$form_state) {    
   global $user;
   $user = user_load($user->uid);
   
@@ -133,8 +133,8 @@ function curation_tool_new_project_form_page_1($form, &$form_state) {
   $form['next'] = array(
       '#type' => 'submit',
       '#value' => 'Next >> ',
-      '#submit' => array('curation_tool_new_project_form_next'),
-      '#validate' => array('curation_tool_new_project_page_1_validate'),
+      '#submit' => array('new_projectform_next'),
+      '#validate' => array('new_project_page_1_validate'),
   );
   
   return $form;
@@ -145,12 +145,12 @@ function curation_tool_new_project_form_page_1($form, &$form_state) {
  * @param type $form
  * @param type $form_state 
  */
-function curation_tool_new_project_form_next($form, &$form_state) {
+function new_project_form_next($form, &$form_state) {
   // Ensure that values for each page are carried forward. 
   $form_state['page_values'][$form_state['page']] = $form_state['values'];
  
   // Call the submit function for this form to handle any processing required.
-  $submitFunction = 'curation_tool_new_project_page_'.$form_state['page'].'_submit';
+  $submitFunction = 'new_project_page_'.$form_state['page'].'_submit';
   $submitFunction($form, $form_state);
   
   // Increment the page and rebuild the form to call the hook_form implementation
@@ -163,9 +163,9 @@ function curation_tool_new_project_form_next($form, &$form_state) {
  * @param type $form
  * @param type $form_state 
  */
-function curation_tool_new_project_form_back($form, &$form_state) {
-  $form_state['values'] = $form_state['page_values'][1];
+function new_project_form_back($form, &$form_state) {
   $form_state['page']--;
+  $form_state['values'] = $form_state['page_values'][$form_state['page']];
   $form_state['rebuild'] = TRUE;
 }
 
@@ -174,9 +174,10 @@ function curation_tool_new_project_form_back($form, &$form_state) {
  * @param type $form
  * @param type $form_state 
  */
-function curation_tool_new_project_form_cancel($form, &$form_state) {
+function new_project_form_cancel($form, &$form_state) {
   file_delete($form_state['storage']['file'], TRUE);
-  $form_state['values'] = $form_state['page_values'][1];
+  $form_state['page_values'] = array();
+  $form_state['values'] = array();
   $form_state['page'] = 1;
   $form_state['rebuild'] = TRUE;
 }
@@ -186,7 +187,7 @@ function curation_tool_new_project_form_cancel($form, &$form_state) {
  * @param type $form
  * @param type $form_state 
  */
-function curation_tool_new_project_page_1_validate($form, &$form_state) {
+function new_project_page_1_validate($form, &$form_state) {
 
   
   // Big nasty regex to validate a date time
@@ -253,7 +254,7 @@ function curation_tool_new_project_page_1_validate($form, &$form_state) {
  * @param type $form
  * @param type $form_state 
  */
-function curation_tool_new_project_page_1_submit($form, &$form_state){ 
+function new_project_page_1_submit($form, &$form_state){ 
     
 }
 
@@ -263,7 +264,7 @@ function curation_tool_new_project_page_1_submit($form, &$form_state){
  * @param type $form_state
  * @return string 
  */
-function curation_tool_new_project_form_page_2($form, &$form_state) {
+function new_project_form_page_2($form, &$form_state) {
   $form['descriptive_metadata'] = array(
       '#title' => t('Descriptive Information'),
       '#description' => t('Use these fields to supply information that applies to the '.
@@ -364,22 +365,22 @@ function curation_tool_new_project_form_page_2($form, &$form_state) {
   $form['back'] = array(
       '#type' => 'submit',
       '#value' => '<< Back',
-      '#submit' => array('curation_tool_new_project_form_back'),
+      '#submit' => array('new_projectform_back'),
       '#limit_validation_errors' => array(),
   );
   
   $form['cancel'] = array(
       '#type' => 'submit',
       '#value' => '<< Cancel >>',
-      '#submit' => array('curation_tool_new_project_form_cancel'),
+      '#submit' => array('new_projectform_cancel'),
       '#limit_validation_errors' => array(),
   );
   
   $form['submit'] = array(
       '#type' => 'submit',
       '#value' => 'Next >>',
-      '#submit' => array('curation_tool_new_project_form_next'),
-      '#validate' => array('curation_tool_new_project_page_2_validate'),
+      '#submit' => array('new_projectform_next'),
+      '#validate' => array('new_project_page_2_validate'),
   );
   return $form;
 }
@@ -510,7 +511,7 @@ function _get_descriptive_meta(&$form_state) {
  * @param type $form
  * @param type $form_state 
  */
-function curation_tool_new_project_page_2_validate($form, &$form_state) {
+function new_project_page_2_validate($form, &$form_state) {
  
   // Check for correct date format
   if(preg_match(
@@ -535,7 +536,7 @@ function curation_tool_new_project_page_2_validate($form, &$form_state) {
  * @param type $form
  * @param type $form_state 
  */
-function curation_tool_new_project_page_2_submit($form, &$form_state){
+function new_project_page_2_submit($form, &$form_state){
 }
 
 /**
@@ -544,7 +545,7 @@ function curation_tool_new_project_page_2_submit($form, &$form_state){
  * @param type $form_state
  * @return string 
  */
-function curation_tool_new_project_form_page_3($form, &$form_state) {
+function new_project_form_page_3($form, &$form_state) {
   $form['license_metadata'] = array(
       '#type' => 'fieldset',
       '#title' => 'Rights and Licensing Information',
@@ -592,22 +593,22 @@ function curation_tool_new_project_form_page_3($form, &$form_state) {
   $form['back'] = array(
       '#type' => 'submit',
       '#value' => '<< Back',
-      '#submit' => array('curation_tool_new_project_form_back'),
+      '#submit' => array('new_projectform_back'),
       '#limit_validation_errors' => array()
   );
   
   $form['cancel'] = array(
       '#type' => 'submit',
       '#value' => '<< Cancel >>',
-      '#submit' => array('curation_tool_new_project_form_cancel'),
+      '#submit' => array('new_projectform_cancel'),
       '#limit_validation_errors' => array(),
   );
   
   $form['submit'] = array(
       '#type' => 'submit',
       '#value' => 'Next >>',
-      '#submit' => array('curation_tool_new_project_form_next'),
-      '#validate' => array('curation_tool_new_project_page_3_validate'),
+      '#submit' => array('new_projectform_next'),
+      '#validate' => array('new_project_page_3_validate'),
   );
   
   return $form;
@@ -618,7 +619,7 @@ function curation_tool_new_project_form_page_3($form, &$form_state) {
  * @param type $form
  * @param type $form_state 
  */
-function curation_tool_new_project_page_3_validate($form, &$form_state) {
+function new_project_page_3_validate($form, &$form_state) {
   
 }
 
@@ -628,7 +629,7 @@ function curation_tool_new_project_page_3_validate($form, &$form_state) {
  * @param type $form
  * @param type $form_state 
  */
-function curation_tool_new_project_page_3_submit($form, &$form_state){}
+function new_project_page_3_submit($form, &$form_state){}
 
 /**
  *
@@ -636,7 +637,7 @@ function curation_tool_new_project_page_3_submit($form, &$form_state){}
  * @param type $form_state
  * @return array 
  */
-function curation_tool_new_project_form_page_4($form, &$form_state) {
+function new_project_form_page_4($form, &$form_state) {
   $form['assurances'] = array(
       '#title' => t('Assurances'),
       '#type' => 'fieldset',
@@ -667,22 +668,22 @@ function curation_tool_new_project_form_page_4($form, &$form_state) {
   $form['back'] = array(
       '#type' => 'submit',
       '#value' => '<< Back',
-      '#submit' => array('curation_tool_new_project_form_back'),
+      '#submit' => array('new_projectform_back'),
       '#limit_validation_errors' => array()
   );
   
   $form['cancel'] = array(
       '#type' => 'submit',
       '#value' => '<< Cancel >>',
-      '#submit' => array('curation_tool_new_project_form_cancel'),
+      '#submit' => array('new_projectform_cancel'),
       '#limit_validation_errors' => array(),
   );
   
   $form['submit'] = array(
       '#type' => 'submit',
       '#value' => 'Submit',
-      '#submit' => array('curation_tool_new_project_page_4_submit'),
-      '#validate' => array('curation_tool_new_project_page_4_validate'),
+      '#submit' => array('new_project_page_4_submit'),
+      '#validate' => array('new_project_page_4_validate'),
   );
   return $form;
 }
@@ -692,7 +693,7 @@ function curation_tool_new_project_form_page_4($form, &$form_state) {
  * @param type $form
  * @param type $formstate 
  */
-function curation_tool_new_project_page_4_validate($form, &$form_state) {
+function new_project_page_4_validate($form, &$form_state) {
   $message = '';
   if(
           !$form_state['values']['assureCopyright'] || 
@@ -712,11 +713,13 @@ function curation_tool_new_project_page_4_validate($form, &$form_state) {
  * @param type $form
  * @param type $form_state 
  */
-function curation_tool_new_project_page_4_submit($form, &$form_state){
+function new_project_form_page_4_submit($form, &$form_state){
   // gather up the page values and combine them into the values index.
   foreach($form_state['page_values'] as $values) {
     $form_state['values'] = array_merge($form_state['values'], $values);
   } 
+  
+  _handle_uploaded_data($form_state);
   
 //  $postData = array();
 //  $postData['repository'] = variable_get('data_curation_repository_location');
