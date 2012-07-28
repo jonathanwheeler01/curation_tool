@@ -30,7 +30,7 @@ function curation_tool_menu() {
       'file path' => 'sites/all/modules/curation_tool/forms',
       'file' => 'admin_forms.php',
       'page arguments' => array('curation_tool_admin_form'),
-      'access callback' => TRUE,
+      'access arguments' => array('administer curation tool'),
       'type' => MENU_NORMAL_ITEM,
   );
   
@@ -43,13 +43,13 @@ function curation_tool_menu() {
       );
   
   $items['user/project/add'] = array(
-      'title' => 'Process Project',
+      'title' => 'New Project',
       'description' => 'Create a new data project.',
       'file path' => 'sites/all/modules/curation_tool/forms',
       'file' => 'new_project_wizard.php',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('form_new_project_wizard'),
-      'access callback' => TRUE,
+      'access arguments' => array('create own project'),
       'parent' => 'user/project',
       'type' => MENU_NORMAL_ITEM,
       'menu_name' => 'navigation',
@@ -104,5 +104,4 @@ function curation_tool_permission() {
       ),
   );
 }
-
 ?>

@@ -32,17 +32,63 @@
  * @param type $form 
  */
 function form_new_project_wizard($form, &$form_state) {
-  
   // Initialize the wizard if needed.
+  // 
   if(empty($form_state['page'])) {
     $form_state['page'] = 1;
-    
     $form_state['page_information'] = _new_project_wizard_pages();
+    $form_state['page_values']=array();
   }
   
   $page = $form_state['page'];
+  
+  // The form rebuild forces the logic through this form. This statement
+  // builds all of the form except submit buttons.
   $form = $form_state['page_information'][$page]['form']($form, $form_state);
-  drupal_set_message($form_state['page_information'][$page]['form']);
+  
+
+  // All but the first page get a previous and cancel button.
+  if($page > 1) {
+    
+    $form['previous'] = array(
+        '#type' => 'submit',
+        '#value' => t('<< Previous'),
+        '#name' => 'previous',
+        '#submit' => array('form_new_project_wizard_previous_submit'),
+        );
+    
+    $form['cancel']  = array(
+        '#type' => 'submit',
+        '#value' => t('<< Cancel >>'),
+        '#name' => 'cancel',
+        '#submit' => array('form_new_project_wizard_cancel_submit'),
+        '#limit_validation_errors' => array(),
+    );
+  }
+  
+  // Add a Next>> button to all but the last pages.
+  if($page < sizeof(_new_project_wizard_pages())) {
+    $form['next'] = array(
+        '#type' => 'submit',
+        '#value' => t('Next >>'),
+        '#name' => 'next',
+        '#submit' => array('form_new_project_wizard_next_submit'),
+    );
+  }
+  // Add a finish button to the last page.
+  else {
+    $form['finish'] = array(
+        '#type' => 'submit',
+        '#value' => t('Finish'),
+    );
+  }
+  
+  // Perform any validation.
+  if(function_exists($form_state['page_information'][$page]['form'].'_validate')) {
+    $form['next']['#validate'] = array($form_state['page_information'][$page]['form'].'_validate');
+  }
+  
+  
   return $form;
 }
 
@@ -60,7 +106,56 @@ function _new_project_wizard_pages() {
 }
 
 /**
- * Page one of the wizard. Collects the basic project information.
+ *
+ * @param type $form
+ * @param type $form_state 
+ */
+function form_new_project_wizard_previous_submit($form, &$form_state) {
+  $form_state['page_values'][$form_state['page']] = $form_state['values'];
+  $form_state['page']--;
+  $form_state['values'] = $form_state['page_values'][$form_state['page']];
+  $form_state['rebuild'] = true;
+}
+
+/**
+ *
+ * @param type $form
+ * @param type $form_state 
+ */
+function form_new_project_wizard_cancel_submit($form, &$form_state) {
+  $form_state['page'] = 1;
+  $form_state['values'] = array();
+  $form_state['page_values'] = array();
+  $form_state['rebuild'] = true;
+}
+
+/**
+ * Handle creating the next page.
+ * @param type $form
+ * @param type $form_state
+ * @return type 
+ */
+function form_new_project_wizard_next_submit($form, &$form_state) {
+  // Stash the pages values into the page_value key
+  $form_state['page_values'][$form_state['page']] = $form_state['values'];
+  if($form_state['page'] < sizeof(_new_project_wizard_pages())) {
+    $form_state['page']++;
+    
+    // If the next page has values place them in current page values.
+    if(!empty($form_state['page_values'][$form_state['page']])) {
+      $form_state['values'] = $form_state['page_values'][$form_state['page']];
+    }
+    else {
+      $form_state['values'] = array();
+    }
+    // Force rebuild for all but the last page.
+    $form_state['rebuild'] = true;
+    return;
+  }
+}
+
+/**
+ * Collects the basic project information.
  * @param type $form
  * @param type $form_state 
  */
@@ -93,7 +188,7 @@ function form_new_project_info($form, &$form_state) {
   if(empty($form_state['page_values'][1]['username'])) {
     $firstName = field_get_items('user', $user, 'field_first_name');
     $lastName = field_get_items('user', $user, 'field_last_name');
-    $dataowner = $firstName[0]['value'].' '.$lastName[0]['value'].' - '.$user->name;
+    $dataowner = $user->name;
   }
   else {    
     $dataowner = $form_state['page_values'][1]['username'];
@@ -117,29 +212,33 @@ function form_new_project_info($form, &$form_state) {
       '#title' => t('Do you want to upload a new dataset or process an existing data set?'),
   );
   
+  // Only display this element if the "new" radio button is selected.
   $form['data']['upload_data'] = array(
       '#name' => 'files[upload_data]',
       '#type' => 'file',
-      '#title' => t('Upload and Process New Data'),
+      '#title' => t('Upload and process new data'),
       '#description' => t('Upload a single file, or a zipped file for mutliple files.'),
+      '#states' => array(
+          'visible' => array(':input[name="new_data"]' => array('value' => 'new')),
+      ),
       );
+  
+  // Only display this element if the "existing" radio button is selected.
+  $form['data']['existing_data'] = array (
+      '#type' => 'textfield',
+      '#title' => t('Process an existing project'),
+      '#description' => t('Enter the name of an existing project. '.
+              '<br/><span class="warning">WARNING: This will erase any previous work done on this project.</span>'),
+      '#states' => array(
+          'visible' => array(':input[name="new_data"]' => array('value' => 'existing')),
+      ), 
+  );
   
   $form['curator_info'] = array(
       '#type' => 'fieldset',
       '#title' => t('Curator Info'),
       '#description' => t('Enter information about the curators and curatoin process here.'),
   );
-
-  // If the curators have been specified previously use them. Otherwise
-  // set the default to the curent user
-  if(empty($form_state['page_values'][1]['curator'])) {
-    $firstName = field_get_items('user', $user, 'field_first_name');
-    $lastName = field_get_items('user', $user, 'field_last_name');
-    $curator = $firstName[0]['value'].' '.$lastName[0]['value'];
-  }
-  else {
-    $curator = $form_state['page_values'][1]['curator'];
-  }
   
   $form['curator_info']['curator'] = array(
       '#title' => t('Curator&apos;s Name(s)'),
@@ -149,25 +248,247 @@ function form_new_project_info($form, &$form_state) {
       '#length' => 60,
       '#maxlength' => 120,
       '#required' => TRUE,
-      '#default_value' => $curator,
+      '#default_value' => key_exists(1, $form_state['page_values'])?
+                                        $form_state['page_values'][1]['curator']:
+                                        $firstName[0]['value'].' '.$lastName[0]['value'],
       );
-  
-  // Recover any prevoiusly specfied data
-  if(empty($form_state['page_values'][1]['metaCreateDate'])) {
-    $metaCreateDate = date('c', time());
-  }
-  else {
-    $metaCreateDate = $form_state['page_values'][1]['metaCreateDate'];
-  }
   
   $form['curator_info']['metaCreateDate'] = array(
       '#title' => t('Creation Date'),
       '#type' => 'textfield',
       '#length' => 60,
-      '#default_value' => $metaCreateDate,
+      '#default_value' => key_exists(1, $form_state['page_values'])?
+                                        $form_state['page_values'][1]['metaCreateDate']:date('c', time()),
       '#required' => TRUE,
       '#description' => t('Enter the date the project data was uploaded.'),
   );
   return $form;
+}
+
+/**
+ *
+ * @param type $form
+ * @param type $form_state 
+ */
+function form_new_project_info_validate($form, &$form_state) {
+  
+}
+
+/**
+ * Gathers descriptive metadata for the project.
+ * @param type $form
+ * @param type $form_state
+ * @return type 
+ */
+function form_new_project_descriptive_meta($form, &$form_state) {
+  $form['descriptive_metadata'] = array(
+      '#title' => t('Descriptive Information'),
+      '#description' => t('Use these fields to supply information that applies to the '.
+              'entire data set'),
+      '#type' => 'fieldset',
+  );
+  
+  $form['descriptive_metadata']['title'] = array(
+      '#title' => t('Title'),
+      '#description' => t('Provide a short descriptive title for the data.'),
+      '#type' => 'textfield',
+      '#length' => 80,
+      '#maxlength' => 120,
+      '#required' => TRUE,
+      '#default_value' => 
+            key_exists(2, $form_state['page_values'])?
+                                $form_state['page_values'][2]['title']:'',
+  );
+  
+  $form['descriptive_metadata']['creator'] = array(
+      '#title' => t('Data Creators'),
+      '#description' => t('Enter the names of the people responsible for creating the data '.
+              'separated with vertical bars (|).'),
+      '#type' => 'textfield',
+      '#multi' => TRUE,
+      '#length' => 80,
+      '#maxlength' => 256,
+      '#required' => TRUE,
+      '#default_value' => 
+            key_exists(2, $form_state['page_values'])?
+                                $form_state['page_values'][2]['creator']:'',
+      
+  );
+  
+  $form['descriptive_metadata']['contributor'] = array(
+      '#title' => t('Other Contributors'),
+      '#description' => t('Enter the names of other people with a role in creating the data '.
+              'separated with vertical bars (|).'),
+      '#type' => 'textfield',
+      '#multi' => TRUE,
+      '#length' => 80,
+      '#maxlength' => 256,
+      '#default_value' => 
+            key_exists(2, $form_state['page_values'])?
+                                $form_state['page_values'][2]['contributor']:'',
+  );
+  
+  $form['descriptive_metadata']['subject'] = array(
+      '#title' => t('Keywords'),
+      '#description' => t('Enter keywords or phrases to aid in searching for your data separated by commas.'.
+              'separated by commas.'),
+      '#type' => 'textfield',
+      '#multi' => TRUE,
+      '#length' => 80,
+      '#maxlength' => 256,
+      '#default_value' => 
+            key_exists(2, $form_state['page_values'])?
+                                $form_state['page_values'][2]['subject']:'',
+  );
+  
+  $form['descriptive_metadata']['created'] = array(
+      '#title' => t('Date Created'),
+      '#description' => t('Enter the date the data was created <em>(YYYY-MM-DD)</em>'),
+      '#type' => 'textfield',
+      '#length' => 80,
+      '#maxlength' => 256,
+      '#required' => TRUE,
+      '#default_value' => 
+            key_exists(2, $form_state['page_values'])?
+                                $form_state['page_values'][2]['created']:date('Y-m-d', time()),
+  );
+  
+  $form['descriptive_metadata']['abstract'] = array(
+      '#title' => t('Describe The Study'),
+      '#description' => t('Provide a narrative description of the project.'),
+      '#type' => 'textarea',
+      '#cols' => 80,
+      '#rows' => 10,
+      '#resizeable' => TRUE,
+      '#default_value' => 
+            key_exists(2, $form_state['page_values'])?
+                                $form_state['page_values'][2]['abstract']:'',
+  );
+  
+  $form['descriptive_metadata']['description'] = array(
+      '#title' => t('Describe the Data'),
+      '#description' => t('Provide a brief description of the structure of the data.'),
+      '#type' => 'textarea',
+      '#cols' => 80,
+      '#rows' => 10,
+      '#resizeable' => TRUE,
+      '#default_value' => 
+            key_exists(2, $form_state['page_values'])?
+                                $form_state['page_values'][2]['description']:'',
+  );
+  return $form;
+}
+
+/**
+ *
+ * @param type $form
+ * @param type $form_state 
+ */
+function form_new_project_descriptive_meta_validate($form, &$form_state) {
+  
+}
+
+/**
+ * Collect metadata pertaining to rights associated with the metadata.
+ * @param type $form
+ * @param type $form_state
+ * @return type 
+ */
+function form_new_project_rights_meta ($form, &$form_state) {
+  $form['license_metadata'] = array(
+      '#type' => 'fieldset',
+      '#title' => 'Rights and Licensing Information',
+      '#description' => 'Use this section to document licensing and rights issues '.
+              'concerning your entire dataset. If only '.
+              'parts of your dataset can be claimed, you may document that specifically '.
+              'for those files or groups of file later.',
+  );
+  
+
+    $defaultLicense = 'This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 Unported License.';
+
+  
+  $form['license_metadata']['license'] = array(
+      '#title' => t('Licensing Information'),
+      '#description' => t('Describe how you want your data licensed. <br/><strong>NOTE: '.
+              'Your work must have an open license to be included in the repository.</strong>'),
+      '#type' => 'textarea',
+      '#cols' => 80,
+      '#rows' => 10,
+      '#default_value' => 
+            key_exists(3, $form_state['page_values'])?
+                                $form_state['page_values'][3]['license']:$defaultLicense,
+      '#resizeable' => TRUE,
+  );
+  
+  $form['license_metadata']['rights'] = array(
+      '#title' => t('Rights Information'),
+      '#description' => t('If any other parties can claim rights over this data set, list them and describe the nautre of their claim.' ),
+      '#type' => 'textarea',
+      '#cols' => 80,
+      '#rows' => 10,
+      '#resizeable' => TRUE,
+      '#default_value' => 
+            key_exists(3, $form_state['page_values'])?
+                                $form_state['page_values'][3]['rights']:'',
+  );
+  return $form;
+}
+
+/**
+ *
+ * @param type $form
+ * @param type $form_state 
+ */
+function form_new_project_rights_meta_validate($form, &$form_state) {
+  
+}
+
+/**
+ * Just have the user click the boxes to put them on notice they should be
+ * thinking about these things. We have not teeth to enforce it.
+ * @param type $form
+ * @param type $form_state
+ * @return string 
+ */
+function form_new_project_assurances($form, &$form_state) {
+  
+  $form['assurances'] = array(
+      '#title' => t('Assurances'),
+      '#type' => 'fieldset',
+      '#description' => 'Please read the following assurances. Each box '.
+                        'must be checked to upload the data. By checking the boxes '.
+                        'you are stating that the statements are true.',
+  );
+  
+  $form['assurances']['assureCopyright'] = array(
+      '#type' => 'checkbox',
+      '#description' => 'I am the owner of this content or have permission to release '.
+                        'this content to the University of New Mexico Institutional Repository (LoboVault).',
+  );
+  
+  $form['assurances']['releaseCopyright'] = array(
+      '#type' => 'checkbox',
+      '#description' => 'I understand that LoboVault is an open access repository and '.
+                        'that the content I am uploaded will be available to the public '.
+                        'immediately or after a specified embargo period of less than 2 years.',
+  );
+  
+  $form['assurances']['assureInformation'] = array(
+      '#type' => 'checkbox',
+      '#description' => 'I have supplied sufficient supporting information to make this data '.
+                        'understandable and accessable to others.',
+  );
+  
+  return $form;
+}
+
+/**
+ *
+ * @param type $form
+ * @param type $form_state 
+ */
+function form_new_project_assurances_validate($form, &$form_state) {
+  
 }
 ?>
