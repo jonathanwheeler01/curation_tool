@@ -47,7 +47,17 @@ function form_new_project_wizard($form, &$form_state) {
   // builds all of the form except submit buttons.
   $form = $form_state['page_information'][$page]['form']($form, $form_state);
   
-
+  // Sets the page title to show progress.
+  drupal_set_title(
+          t(
+                  'New Project Wizard: @step. (Step @page of @pages)', 
+                  array(
+                      '@step' => $form_state['page_information'][$page]['name'],
+                      '@page' => $page, 
+                      '@pages' => sizeof($form_state['page_information']),
+                      )
+                  )
+          );
   // All but the first page get a previous and cancel button.
   if($page > 1) {
     
@@ -78,10 +88,12 @@ function form_new_project_wizard($form, &$form_state) {
     );
   }
   // Add a finish button to the last page.
-  else {
+  else {    
     $form['finish'] = array(
         '#type' => 'submit',
+        '#name' => 'finish',
         '#value' => t('Finish'),
+        '#submit' => array('form_new_project_wizard_finish_submit'),
     );
   }
   
@@ -95,15 +107,28 @@ function form_new_project_wizard($form, &$form_state) {
 }
 
 /**
- * The pages of the wizard, separated out for clarity.
+ * The pages of the wizard, separated out for clarity. New form pages must
+ * have an array element here to be included in the wizard. The order of
+ * the pages will be their order in the array. Each entry must
+ * include with the following :
+ * <dl>
+ *  <dt>form: </dt>
+ *    <dd>The name of the form function that creates the form.</dd>
+ *  <dt>name: </dt>
+ *    <dd> The form name to be displayed to the user. </dd>
+ *  <dt>review: </dt>
+ *    <dd> If this is set to true, data from the form page are displayed to the
+ *    user at the final page.
+ * </dl>
  * @return type 
  */
 function _new_project_wizard_pages() {
   return array(
-      1 => array('form' => 'form_new_project_info',),
-      2 => array('form' => 'form_new_project_descriptive_meta', ),
-      3 => array('form' => 'form_new_project_rights_meta', ),
-      4 => array('form' => 'form_new_project_assurances', ),
+      1 => array('form' => 'form_new_project_info', 'name' => 'Project Information', 'review' => true),
+      2 => array('form' => 'form_new_project_descriptive_meta','name' => 'Descriptive Information', 'review' => true ),
+      3 => array('form' => 'form_new_project_rights_meta', 'name' => 'Rights Information', 'review' => true),
+      4 => array('form' => 'form_new_project_assurances', 'name' => 'Assurances', 'review' => false),
+      5 => array('form' => 'form_new_project_review', 'name' => 'Review', 'review' => false),
   );
 }
 
@@ -117,6 +142,10 @@ function form_new_project_wizard_previous_submit($form, &$form_state) {
   $form_state['page']--;
   $form_state['values'] = $form_state['page_values'][$form_state['page']];
   $form_state['rebuild'] = true;
+}
+
+function form_new_project_wizard_finish_submit($form, &$form_state) {
+  
 }
 
 /**
@@ -262,10 +291,9 @@ function form_new_project_info($form, &$form_state) {
   
   $form['curator_info']['metaCreateDate'] = array(
       '#title' => t('Creation Date'),
-      '#type' => 'textfield',
-      '#length' => 60,
+      '#type' => 'date',
       '#default_value' => key_exists(1, $form_state['page_values'])?
-                                        $form_state['page_values'][1]['metaCreateDate']:date('c', time()),
+                                        $form_state['page_values'][1]['metaCreateDate']:null,
       '#required' => TRUE,
       '#description' => t('Enter the date the project data was uploaded.'),
   );
@@ -281,28 +309,6 @@ function form_new_project_info_validate($form, &$form_state) {
         
   global $user;
   $user = user_load($user->uid);
-  
-  $dateRegEx = 
-        '/^-?((?:19|20[0-9]{2})-(?:0[1-9]|1[0-2])-'.
-        '(?:0[1-9]|[1-2][0-9]|3[0-1]))$/';
-  $dateTimeRegEx = 
-        '/^-?((?:19|20[0-9]{2})-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1]))'.
-        'T((?:[0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9])(?:.[0-9]{0,9})?'.
-        '((?:Z)|(?:[-\+](?:[0-1][0-9]|2[0-3]):00))?$/';
-  
-  // If the user just gives a year, date and month, just add the required 
-  // text to make it validate as an xsd datetime assuming the time is midnight.
-  if(preg_match($dateRegEx, $form_state['values']['metaCreateDate'])) {
-    $form_state['values']['metaCreateDate'] = 
-    _format_date_to_xsd_datetime($form_state['values']['metaCreateDate']);
-  }
-  
-  // Verify that the dateTime is valid.
-  if(!preg_match($dateTimeRegEx, $form_state['values']['metaCreateDate'])) {
-    $message = "You must enter a valid date (YYYY-MM-DD) or datetime (ie. ".
-            "YYYY-MM-DDTHH:MM:SS[+/-HH:MM], the time zone offset is optional.)";
-    form_set_error($form_state['data']['metaCreateDate'], $message);
-  }
   
   // If the user is uploading new data, validate the file attempt to upload it.
   if($form_state['values']['new_data'] == 'new') {
@@ -375,7 +381,6 @@ function form_new_project_info_validate($form, &$form_state) {
  */
 function form_new_project_descriptive_meta($form, &$form_state) {
   
-  drupal_set_message(var_dump($form_state['page_values']));
   $form['descriptive_metadata'] = array(
       '#title' => t('Descriptive Information'),
       '#description' => t('Use these fields to supply information that applies to the '.
@@ -438,14 +443,14 @@ function form_new_project_descriptive_meta($form, &$form_state) {
   
   $form['descriptive_metadata']['created'] = array(
       '#title' => t('Date Created'),
-      '#description' => t('Enter the date the data was created <em>(YYYY-MM-DD)</em>'),
-      '#type' => 'textfield',
-      '#length' => 80,
-      '#maxlength' => 256,
+      '#description' => t('Enter the date the data was created.'),
+      '#type' => 'date',
+//      '#length' => 80,
+//      '#maxlength' => 256,
       '#required' => TRUE,
       '#default_value' => 
             key_exists(2, $form_state['page_values'])?
-                                $form_state['page_values'][2]['created']:date('Y-m-d', time()),
+                                $form_state['page_values'][2]['created']:null,
   );
   
   $form['descriptive_metadata']['abstract'] = array(
@@ -480,7 +485,7 @@ function form_new_project_descriptive_meta($form, &$form_state) {
  * @param type $form_state 
  */
 function form_new_project_descriptive_meta_validate($form, &$form_state) {
-  
+
 }
 
 /**
@@ -584,7 +589,22 @@ function form_new_project_assurances($form, &$form_state) {
  * @param type $form_state 
  */
 function form_new_project_assurances_validate($form, &$form_state) {
-  
+  $message = "You must acknowledge each assurance by checking the box.";
+  if(
+          !$form_state['values']['assureCopyright'] || 
+          !$form_state['values']['releaseCopyright'] || 
+          !$form_state['values']['assureInformation']
+          ) {
+    form_set_error('assurances', $message);
+  }
+}
+
+function form_new_project_review($form, &$form_state) {
+    $form['markup'] = array(
+        '#type' => 'markup',
+        '#markup' => _format_data($form_state),
+    );
+    return $form;
 }
 
 function _format_date_to_xsd_datetime($date, DateTimeZone $timezone = null) {
@@ -645,4 +665,147 @@ function _check_project_exisits($projectName, $projectOwner) {
           variable_get('data_curation_repository_location').'/'.
           $projectOwner.'/'.$projectName);
 }
+
+function _format_data($form_state) {
+  
+  $output = theme('html_tag', array(
+          'element' => array(
+              '#tag' => 'p',
+              '#value' => 'Please review your information. If it is correct '.
+                          'click <strong>Finish</strong>. You can use the '.
+                          '<strong>Previous</strong> and <strong>Next '.
+                          '</strong> buttons to revisit pages and correct any'.
+                          'errors.',
+           ),
+      ));
+  
+  $pageInfo = _new_project_wizard_pages();
+  
+  for($i = 0; $i < sizeof($pageInfo); $i++) {
+    if($pageInfo[$i+1]['review']) {
+      $output .= '<hr/>'.theme('html_tag', array(
+          'element' => array(
+              '#tag' => 'h2',
+              '#value' => $pageInfo[$i+1]['name'],
+          ),
+      ));
+      
+      // These keys come in the page values but we don't really want to see them.
+      $ignoreFields = array('form_build_id', 'form_token', 'form_id', 'cancel', 'next',
+          'previous', 'new_data', 'username', 'upload_data', 'existing_data');
+      
+      // Filter out the fields we know shouldn't be included.
+      $data = array_diff_key(
+                $form_state['page_values'][$i+1], 
+                array_flip($ignoreFields)
+              );
+      
+      $items = array();
+      if($pageInfo[$i+1]['name'] == 'Project Information') {
+        if($form_state['page_values'][$i+1]['new_data'] == 'new') {
+          $items[] = '<strong>action: </strong>new project';
+          $items[] = '<strong>file: </strong>'.$form_state['storage']['file']->filename;
+        }
+        else {
+          $items[] = '<strong>action: </strong>existing project';
+          $items[] = '<strong>project: </strong>'.$form_state['page_values'][$i+1]['existing_data'];
+        }
+      }
+      foreach($data as $field => $value) {
+        if(is_array($value)) {
+          $value = $value['year'].'-'.$value['month'].'-'.$value['day'];
+        }
+        $items[] = '<strong>'.$field.': </strong>'.$value;
+      }
+      $output .= theme('item_list', array('items'=>$items, 'type'=>'ul'));
+    }
+  }
+  
+  $output = theme('container', array(
+      'element' => array(
+          '#attributes' => array(
+              'class' => 'review',
+          ),
+          '#children' => $output,
+      ),
+  ));
+  return $output;
+}
+
+/**
+ * 
+ * @param type $variables An associated array containing:
+ * <dl>
+ *  <dt>items: </dt>
+ *    <dd> An array of items to be display in the list. Each item must contain
+ *    a "term" element and a "definition" element. If the item is a string, then it is used
+ *    as is. If its an array, then the "data" element is used as the list contents.
+ *    If an item is an array with a "children" element, those are displayed as a 
+ *    nested list. All other elements are treated as attributes.</dd>
+ *  <dt>title: </dt>
+ *    <dd> The title of the list. </dd>
+ *  <dt>attributes: </dt>
+ *    <dd> The attributes to be applied to the element.</dd>
+ * </dl>
+ * @return string 
+ */
+function theme_item_list_dl($variables) {
+  $items = is_array($variables)?$variables['items']:array();
+  $title = isset($variables['title'])?$variables['title']:'';
+  $attributes = isset($variables['attributes'])?$variables['attributes']:array();
+  
+  $output = '<div class="definition-list">';
+  
+  if(isset($title) && $title != '') {
+    $output .= '<h3>'.$title.'</h3>';
+  }
+  
+  if(!empty($items)) {
+    $output .= '<dl'.drupal_attributes($attributes).'>';
+    $num_items = count($items);
+    foreach($items as $i => $item) {
+      $attributes = array();
+      $children = array();
+      $data = '';
+      if(is_array($item['definition'])) {
+        foreach($item as $key => $value) {
+          if($key == 'data') {
+            $data = $value;
+          }
+          else if($key == 'children') {
+            $children = $value;
+          }
+          else {
+            $attributes[$key] = 'value';
+          }
+        }
+      }
+      else {
+        $data = $item['definition'];
+      }
+      
+      if(count($children) > 0) {
+        $data .= theme_item_list_dl(array(
+            'items' => $children, 
+            'title' => null, 
+            'attributes' => $attributes,
+            ));
+      }
+      
+      if($i == 0) {
+        $attributes['class'][] = 'first';
+      }
+      
+      if($i == $num_items) {
+        $attributes['class'][] = 'last';
+      }
+      $output .= '<dt '.drupal_attributes($attributes).'>'.$item['term'].'</dt>';
+      $output .= '<dd '.drupal_attributes($attributes).'>'.$data.'</dd>';
+    }
+    $output .= '</dl>';
+  }
+  
+  $output = '</div>';
+  return $output;
+  }
 ?>
