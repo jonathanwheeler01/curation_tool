@@ -20,7 +20,8 @@
  */
 
 /**
- * Description of new_project_wizard
+ * A form wizard to help gather basic information about a data project prior
+ * to upload and processing.
  *
  * @author Robert Olendorf <olendorf@unm.edu>
  *
@@ -55,6 +56,7 @@ function form_new_project_wizard($form, &$form_state) {
         '#value' => t('<< Previous'),
         '#name' => 'previous',
         '#submit' => array('form_new_project_wizard_previous_submit'),
+        '#limit_validation_errors' => array(),
         );
     
     $form['cancel']  = array(
@@ -123,6 +125,7 @@ function form_new_project_wizard_previous_submit($form, &$form_state) {
  * @param type $form_state 
  */
 function form_new_project_wizard_cancel_submit($form, &$form_state) {
+  file_delete($form_state['storage']['file'], TRUE);
   $form_state['page'] = 1;
   $form_state['values'] = array();
   $form_state['page_values'] = array();
@@ -160,7 +163,7 @@ function form_new_project_wizard_next_submit($form, &$form_state) {
  * @param type $form_state 
  */
 function form_new_project_info($form, &$form_state) {
-   global $user;
+  global $user;
   $user = user_load($user->uid);
   
   $form['data'] = array(
@@ -224,6 +227,10 @@ function form_new_project_info($form, &$form_state) {
       );
   
   // Only display this element if the "existing" radio button is selected.
+  /**
+   *@todo Use AJAX to collect the users current projects into a drop down list.
+   * Server should return an array, which is turned into HTML by the javascript. 
+   */
   $form['data']['existing_data'] = array (
       '#type' => 'textfield',
       '#title' => t('Process an existing project'),
@@ -266,12 +273,98 @@ function form_new_project_info($form, &$form_state) {
 }
 
 /**
- *
+ * Validate data from the project info form.
  * @param type $form
  * @param type $form_state 
  */
 function form_new_project_info_validate($form, &$form_state) {
+        
+  global $user;
+  $user = user_load($user->uid);
   
+  $dateRegEx = 
+        '/^-?((?:19|20[0-9]{2})-(?:0[1-9]|1[0-2])-'.
+        '(?:0[1-9]|[1-2][0-9]|3[0-1]))$/';
+  $dateTimeRegEx = 
+        '/^-?((?:19|20[0-9]{2})-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1]))'.
+        'T((?:[0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9])(?:.[0-9]{0,9})?'.
+        '((?:Z)|(?:[-\+](?:[0-1][0-9]|2[0-3]):00))?$/';
+  
+  // If the user just gives a year, date and month, just add the required 
+  // text to make it validate as an xsd datetime assuming the time is midnight.
+  if(preg_match($dateRegEx, $form_state['values']['metaCreateDate'])) {
+    $form_state['values']['metaCreateDate'] = 
+    _format_date_to_xsd_datetime($form_state['values']['metaCreateDate']);
+  }
+  
+  // Verify that the dateTime is valid.
+  if(!preg_match($dateTimeRegEx, $form_state['values']['metaCreateDate'])) {
+    $message = "You must enter a valid date (YYYY-MM-DD) or datetime (ie. ".
+            "YYYY-MM-DDTHH:MM:SS[+/-HH:MM], the time zone offset is optional.)";
+    form_set_error($form_state['data']['metaCreateDate'], $message);
+  }
+  
+  // If the user is uploading new data, validate the file attempt to upload it.
+  if($form_state['values']['new_data'] == 'new') {
+      // Attempt to validate the file and upload it.
+      $validators = array(
+          'file_validate_size' => array(file_upload_max_size()),
+          'file_validate_extensions' => array(),
+          );
+      $file = file_save_upload('upload_data', $validators);
+      if($file) {
+      // Avoid accidentally overwriting existing projects.
+    
+        $dirName = implode('.', array_slice(explode('.', $file->filename), 0, -1));
+        
+        // Only allow users with the appropriate permissions to overwrite a 
+        // previous project.
+        if(_check_project_exisits($dirName, $form_state['values']['username'])) {
+          if(
+                  user_access('delete any project') || 
+                          (user_access('delete own project') && 
+                           $user->name == $form_state['values']['username']
+                          )
+                  ) {
+            $message = 'The project "'.$dirName.'" already exisits. If you wish '.
+                    'to overwrite the project, continue normally, otherwise cancel to '.
+                    'avoid losing previous work.';
+            drupal_set_message($message, 'warning');
+          }
+          else {
+            $message = 'The project "'.$dirName.'" already exisits. Please choose a '.
+                    'file with a different name or <a href="mailto:'.
+                    variable_get('data_curation_help_email').'">contact us</a> if you '.
+                    'feel this message has been recieved in error.';
+            file_delete($file, TRUE);
+            form_set_error('data][upload_data', $message);
+          } 
+        }
+        $form_state['storage']['file'] = $file;
+      }
+      else {
+        $message = 'There was a problem uploading your file. Ensure you chose a valid '.
+                'file and that your your file size is below the maximum allowable size of '.
+                (file_upload_max_size()/1048576).'MB. If your file size is to large '.
+                'or if you continue to have other problems please don&apos;t hesitate '.
+                'to <a href="mailto:'.  variable_get('data_curation_help_email').'">contact us</a>.';
+        form_set_error('data][upload_data', $message);
+      }
+  }
+  else if($form_state['values']['new_data'] == 'existing') {
+    if($form_state['values']['existing_data'] == '') {
+      $message = 'You must specify an existing data set.';
+      form_set_error('data][existing_data', $message);
+    }
+    else if(!_check_project_exisits($form_state['values']['existing_data'], $user->name)) {
+      $message = 'You must specify an existing data set.';
+      form_set_error('data][existing_data', $message);
+    }
+  }
+  else {
+    $message = 'You must select either "Upload New Data" or "Process Existing Data"';
+    form_set_error('new_data', $message);
+  }
 }
 
 /**
@@ -281,6 +374,8 @@ function form_new_project_info_validate($form, &$form_state) {
  * @return type 
  */
 function form_new_project_descriptive_meta($form, &$form_state) {
+  
+  drupal_set_message(var_dump($form_state['page_values']));
   $form['descriptive_metadata'] = array(
       '#title' => t('Descriptive Information'),
       '#description' => t('Use these fields to supply information that applies to the '.
@@ -490,5 +585,64 @@ function form_new_project_assurances($form, &$form_state) {
  */
 function form_new_project_assurances_validate($form, &$form_state) {
   
+}
+
+function _format_date_to_xsd_datetime($date, DateTimeZone $timezone = null) {
+// Use system timezone if none is supplied.
+
+  if(empty($timezone)) {
+    $timezone = new DateTimeZone(date_default_timezone_get());
+    } 
+
+
+  $datetime = new DateTime('now', $timezone);
+  $offset = $datetime->getOffset();
+  $hours = abs(round($offset/3600));
+  $mintues = ($offset%3600)/60;
+  $offsetString = 'T00:00:00';
+
+  // Handle Greenwich mean time.
+  if($offset == 0) {
+    return $date.$offsetString.'Z';
+  }
+
+  // Handle the sign
+  if($offset > 0) {
+    $offsetString.='+';
+  }
+  else {
+    $offsetString.='-';
+  }
+
+  // Ensure leading zero for hourse
+  if($hours < 10) {
+    $offsetString.='0'.$hours.':';
+  }
+  else {
+    $offsetString.=$hours.':';
+  }
+
+  // Ensure leadning zero for minutes
+  if($mintues < 10 ) {
+    $offsetString.='0'.$mintues;
+  }
+  else {
+    $offsetString.=$mintues;
+  }
+
+  return $date.$offsetString;
+}
+
+/**
+ * Returns true if there is a project for the given owner with the given name,
+ * false otherwise.
+ * @param string $projectName
+ * @param string $projectOwner
+ * @return boolean 
+ */
+function _check_project_exisits($projectName, $projectOwner) {
+  return is_dir(
+          variable_get('data_curation_repository_location').'/'.
+          $projectOwner.'/'.$projectName);
 }
 ?>
