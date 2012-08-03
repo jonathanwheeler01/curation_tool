@@ -102,10 +102,10 @@ function form_new_project_wizard($form, &$form_state) {
   if(function_exists($form_state['page_information'][$page]['form'].'_validate')) {
     $form['next']['#validate'] = array($form_state['page_information'][$page]['form'].'_validate');
   }
-  print 'values for page '.$page.'<br/>';
-  var_dump($form_state['values']);
-  print 'page values values<br/>';
-  var_dump($form_state['page_values']);
+//  print 'values for page '.$page.'<br/>';
+//  var_dump($form_state['values']);
+//  print 'page values values<br/>';
+//  var_dump($form_state['page_values']);
   
   return $form;
 }
@@ -137,7 +137,7 @@ function _new_project_wizard_pages() {
 }
 
 /**
- *
+ * 
  * @param type $form
  * @param type $form_state 
  */
@@ -148,7 +148,7 @@ function form_new_project_wizard_previous_submit($form, &$form_state) {
 }
 
 /**
- *@todo
+ *@todo Complete finish_submit function
  * @param type $form
  * @param type $form_state 
  */
@@ -157,12 +157,15 @@ function form_new_project_wizard_finish_submit($form, &$form_state) {
 }
 
 /**
- *
+ * Handles cancelling a submission process. Clears any form values and
+ * starts from page one.
  * @param type $form
  * @param type $form_state 
  */
 function form_new_project_wizard_cancel_submit($form, &$form_state) {
-  file_delete($form_state['storage']['file'], TRUE);
+  if(isset($form_state['storage']['file'])) {
+    file_delete($form_state['storage']['file'], TRUE);
+  }
   $form_state['page'] = 1;
   $form_state['values'] = array();
   $form_state['page_values'] = array();
@@ -559,7 +562,10 @@ function form_new_project_rights_meta_validate($form, &$form_state) {
 
 /**
  * Just have the user click the boxes to put them on notice they should be
- * thinking about these things. We have not teeth to enforce it.
+ * thinking about these things. We have not teeth to enforce it. Since
+ * validation won&amp;t allow progress beyond this page without all boxes
+ * being checked, this should be sufficient. The values are not currently
+ * stored anywhere.
  * @param type $form
  * @param type $form_state
  * @return string 
@@ -597,7 +603,7 @@ function form_new_project_assurances($form, &$form_state) {
 }
 
 /**
- *
+ * Prevents user from moving beyond this step until all boxes are checked.
  * @param type $form
  * @param type $form_state 
  */
@@ -620,6 +626,15 @@ function form_new_project_review($form, &$form_state) {
     return $form;
 }
 
+/**
+ * Utility function to convert a data into a datetime. METs tends to require
+ * full xsd datetime format, but thats annoying in forms and not really 
+ * necessary for most application. Just appends the datetime to be midnigt of
+ * that day.
+ * @param type $date
+ * @param DateTimeZone $timezone
+ * @return type 
+ */
 function _format_date_to_xsd_datetime($date, DateTimeZone $timezone = null) {
 // Use system timezone if none is supplied.
 
