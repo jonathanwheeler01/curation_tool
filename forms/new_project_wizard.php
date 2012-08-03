@@ -39,6 +39,7 @@ function form_new_project_wizard($form, &$form_state) {
     $form_state['page'] = 1;
     $form_state['page_information'] = _new_project_wizard_pages();
     $form_state['page_values']=array();
+    $form_state['values'] = array();
   }
   
   $page = $form_state['page'];
@@ -101,7 +102,10 @@ function form_new_project_wizard($form, &$form_state) {
   if(function_exists($form_state['page_information'][$page]['form'].'_validate')) {
     $form['next']['#validate'] = array($form_state['page_information'][$page]['form'].'_validate');
   }
-  
+  print 'values for page '.$page.'<br/>';
+  var_dump($form_state['values']);
+  print 'page values values<br/>';
+  var_dump($form_state['page_values']);
   
   return $form;
 }
@@ -138,12 +142,16 @@ function _new_project_wizard_pages() {
  * @param type $form_state 
  */
 function form_new_project_wizard_previous_submit($form, &$form_state) {
-  $form_state['page_values'][$form_state['page']] = $form_state['values'];
   $form_state['page']--;
   $form_state['values'] = $form_state['page_values'][$form_state['page']];
   $form_state['rebuild'] = true;
 }
 
+/**
+ *@todo
+ * @param type $form
+ * @param type $form_state 
+ */
 function form_new_project_wizard_finish_submit($form, &$form_state) {
   
 }
@@ -188,6 +196,11 @@ function form_new_project_wizard_next_submit($form, &$form_state) {
 
 /**
  * Collects the basic project information.
+ * @todo add ajax support that creates a drop-down box based on a users existing
+ * projects and updates wihen the project drop-down changes.
+ * 
+ * @todo consider adding the data module to make the dates even nicer. low priority.
+ * 
  * @param type $form
  * @param type $form_state 
  */
@@ -732,80 +745,4 @@ function _format_data($form_state) {
   return $output;
 }
 
-/**
- * 
- * @param type $variables An associated array containing:
- * <dl>
- *  <dt>items: </dt>
- *    <dd> An array of items to be display in the list. Each item must contain
- *    a "term" element and a "definition" element. If the item is a string, then it is used
- *    as is. If its an array, then the "data" element is used as the list contents.
- *    If an item is an array with a "children" element, those are displayed as a 
- *    nested list. All other elements are treated as attributes.</dd>
- *  <dt>title: </dt>
- *    <dd> The title of the list. </dd>
- *  <dt>attributes: </dt>
- *    <dd> The attributes to be applied to the element.</dd>
- * </dl>
- * @return string 
- */
-function theme_item_list_dl($variables) {
-  $items = is_array($variables)?$variables['items']:array();
-  $title = isset($variables['title'])?$variables['title']:'';
-  $attributes = isset($variables['attributes'])?$variables['attributes']:array();
-  
-  $output = '<div class="definition-list">';
-  
-  if(isset($title) && $title != '') {
-    $output .= '<h3>'.$title.'</h3>';
-  }
-  
-  if(!empty($items)) {
-    $output .= '<dl'.drupal_attributes($attributes).'>';
-    $num_items = count($items);
-    foreach($items as $i => $item) {
-      $attributes = array();
-      $children = array();
-      $data = '';
-      if(is_array($item['definition'])) {
-        foreach($item as $key => $value) {
-          if($key == 'data') {
-            $data = $value;
-          }
-          else if($key == 'children') {
-            $children = $value;
-          }
-          else {
-            $attributes[$key] = 'value';
-          }
-        }
-      }
-      else {
-        $data = $item['definition'];
-      }
-      
-      if(count($children) > 0) {
-        $data .= theme_item_list_dl(array(
-            'items' => $children, 
-            'title' => null, 
-            'attributes' => $attributes,
-            ));
-      }
-      
-      if($i == 0) {
-        $attributes['class'][] = 'first';
-      }
-      
-      if($i == $num_items) {
-        $attributes['class'][] = 'last';
-      }
-      $output .= '<dt '.drupal_attributes($attributes).'>'.$item['term'].'</dt>';
-      $output .= '<dd '.drupal_attributes($attributes).'>'.$data.'</dd>';
-    }
-    $output .= '</dl>';
-  }
-  
-  $output = '</div>';
-  return $output;
-  }
 ?>
