@@ -153,6 +153,15 @@ function form_new_project_wizard_previous_submit($form, &$form_state) {
  * @param type $form_state 
  */
 function form_new_project_wizard_finish_submit($form, &$form_state) {
+  foreach($form_state['page_values'] as $values) {
+    $form_state['values'] = array_merge($form_state['values'], $values);
+  }
+  
+  if($form_state['values']['new_data'] == 'new') {
+    _handle_uploaded_data($form_state);
+  }
+  
+  
   
 }
 
@@ -334,14 +343,30 @@ function form_new_project_info_validate($form, &$form_state) {
           'file_validate_extensions' => array(),
           );
       $file = file_save_upload('upload_data', $validators);
+      
+      $safefilename = filter_var($file->filename, FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW|FILTER_FLAG_STRIP_HIGH);
+      $safefilename = str_replace(' ', '', $safefilename);
+      $safefilename = str_replace(',', '', $safefilename);
+      
+      if($safefilename != $file->filename) {
+        $message = 'Your file name was changed.  Special characters and/or spaces '.
+                'were removed for better web access.';
+        drupal_set_message($message, 'warning');
+      }
+      
+      rename(
+              variable_get('file_temporary_path').'/'.$file->filename, 
+              variable_get('file_temporary_path').'/'.$safefilename);
+      
+      $file->filename = $safefilename;
       if($file) {
       // Avoid accidentally overwriting existing projects.
     
-        $dirName = implode('.', array_slice(explode('.', $file->filename), 0, -1));
+        $dirName = str_replace(' ', '', implode('.', array_slice(explode('.', $file->filename), 0, -1)));
         
         // Only allow users with the appropriate permissions to overwrite a 
         // previous project.
-        if(_check_project_exisits($dirName, $form_state['values']['username'])) {
+        if(_check_project_exists($dirName, $form_state['values']['username'])) {
           if(
                   user_access('delete any project') || 
                           (user_access('delete own project') && 
@@ -619,6 +644,7 @@ function form_new_project_assurances_validate($form, &$form_state) {
 }
 
 function form_new_project_review($form, &$form_state) {
+  var_dump($form_state['page_values']);
     $form['markup'] = array(
         '#type' => 'markup',
         '#markup' => _format_data($form_state),
@@ -688,7 +714,7 @@ function _format_date_to_xsd_datetime($date, DateTimeZone $timezone = null) {
  * @param string $projectOwner
  * @return boolean 
  */
-function _check_project_exisits($projectName, $projectOwner) {
+function _check_project_exists($projectName, $projectOwner) {
   return is_dir(
           variable_get('data_curation_repository_location').'/'.
           $projectOwner.'/'.$projectName);
@@ -759,5 +785,277 @@ function _format_data($form_state) {
   ));
   return $output;
 }
+/**
+ * Helper function that just moves the data from the temporary directory
+ * to its final destination.
+ * @param array $form_state 
+ */
+function _handle_uploaded_data(&$form_state) {
 
+  $userMessage = 'There was an error uploading your data. The geeks have been'.
+        'notified and unleashed! Please try again '.
+        'a few minutes. If the problem persists please '.
+        '<a href = mailto:'.  variable_get('data_curation_help_email').
+        'contact us </a>.';
+  $file = $form_state['storage']['file'];
+  // Get the location for the data.
+  $destination = variable_get('data_curation_repository_location').'/'.$form_state['values']['username'];
+
+  // If there is not directory for this user attempt to make one.
+  if(!file_prepare_directory($destination, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
+    if(!drupal_mkdir($destination, 0777)) {
+      $adminMessage = 'Failed to create or prepare the directory "'.$destination/'"\n';
+
+      _handle_error(
+              'data][upload_data', 
+              $userMessage, 
+              $adminMessage, 
+              __LINE__, 
+              WATCHDOG_ERROR);
+      }
+  }
+
+  // If the data is a zip file unpack it. Otherwise wrap a bare file.
+  if(file_get_mimetype($destination.'/'.$file->filename) == 'application/zip') {
+    $dirname = explode('.', $file->filename);
+    $dirname = $dirname[0];
+
+    if(!_unzip_file(variable_get('file_temporary_path').'/'.$file->filename, 
+            $destination)) {
+
+      $adminMessage = 'Failed to unzip a file to "'.$destination/'"\n';
+
+      _handle_error(
+          'data][upload_data', 
+          $userMessage, 
+          $adminMessage, 
+          __LINE__, 
+          WATCHDOG_ERROR);
+
+          }
+  }
+  else {
+    
+  
+  $wrapper = implode('.', array_slice(explode('.', $file->filename), 0, -1));
+  $form_state['project']['name'] = $wrapper;
+  
+  // Assume that the user knows what she is doing and delete any existing
+  // directories and files.
+  if(is_dir($destination.'/'.$wrapper)) {
+    _rrmdir($destination.'/'.$wrapper);
+  }
+  
+  if(!drupal_mkdir($destination.'/'.$wrapper, null, true)) {
+      _handle_error(
+              'data][upload_data', 
+              $userMessage, 
+              $adminMessage, 
+              __LINE__, 
+              WATCHDOG_ERROR
+              );
+    }
+    if(
+          !rename(
+            variable_get('file_temporary_path').'/'.$file->filename, 
+            $destination.'/'.$wrapper.'/'.$file->filename)
+        ) {
+
+      $adminMessage = 
+            'Failed to move a file to "'.$destination.'"\n';
+
+      _handle_error(
+            'data][upload_data', 
+            $userMessage, 
+            $adminMessage, 
+            __LINE__, 
+            WATCHDOG_ERROR);
+      }
+    }
+    
+    $form_state['values'] = array();
+    $form_state['storage']['file'] = NULL;
+    file_delete($file, TRUE);
+}
+
+/**
+ *
+ * @param type $formElement Form element name. NULL for none.
+ * @param type $userMessage Message to display to the user.
+ * @param type $adminMessage Message to include in the watchdog log and email to admin
+ * @param type $line Line near which the error happened
+ * @param type $watchdogError watchdog error, NULL for none.
+ */
+function _handle_error($formElement, $userMessage, $adminMessage, $line, $watchdogError = NULL) { 
+    form_set_error($formElement, $userMessage);
+
+    $body = 'DateTime: '.date('c', time()).'\n'.
+              'Module: Curation tool(FILE: '.__FILE__.'; LINE: '.$line.')\n'.
+              $adminMessage;
+    mail(variable_get('site_mail'), 'DRUPAL ERROR', $body);
+    watchdog('Curation Tool', $body, NULL, $watchdogError);
+}
+
+/**
+ * Recursively remove directories.
+ * @param string $dir 
+ */
+function _rrmdir($dir) {
+    foreach(glob($dir . '/*') as $file) {
+        if(is_dir($file))
+            rrmdir($file);
+        else
+            unlink($file);
+    }
+    rmdir($dir);
+}
+
+
+/**
+ * Unzips a zip file.
+ * @param type $fileLocation Location of the file
+ * @param type $destination Destination folder for the zip file contents.
+ */
+function _unzip_file($fileLocation, $destination) {
+  print "zip location: ".$fileLocation;
+  print '<br/>';
+  print "zip destiantion: ".$destination;
+  $zip = new ZipArchive();
+  $result = $zip->open($fileLocation);
+  if($result == TRUE) {
+    $zip->extractTo($destination);
+    $zip->close();
+  }
+  
+  return $result;
+}
+
+
+/**
+ * Returns all currently set dublin core metadata elements from the form as 
+ * XML serialzed into a string. The elements must be findable in 
+ * <code>$form_state['values'] and be named by their dublin core name in lower case.
+ * 
+ * @param array $form_state
+ * @return string The XML serialized as a string 
+ */
+function _get_descriptive_meta(&$form_state) {
+  // Get a list of the dublin core terms and elemetns
+  $dc = new DublinCore();
+  $dcElements = $dc->get_elements();
+  $dcTerms = $dc->get_terms();
+  
+  // Extract the dc terms and elements from the form
+  $elements = array_intersect_key($form_state['values'], array_flip($dcElements));
+  $terms = array_diff_key(array_intersect_key($form_state['values'], array_flip($dcTerms)), $elements);
+  
+  // Create the document for the descriptive metadata. Use a wrapper to collect
+  // the elements, which isn't technically required, but makes handling easier.
+  $doc = new DOMDocument('1.0', 'UTF-8');
+  $doc  = _get_dublin_core_wrapper();
+  
+  // handle the dc elements
+  foreach($elements as $name => $value) {
+    // Ignore empty fields
+    if($value != '') {
+      // We allow multiples of elements with commas
+      $values = explode('|', $value);
+      foreach($values as $value) {
+        $wrapper->appendChild(
+                $newElement = $doc->createElementNS(
+                        $dc->elementsURI, 
+                        $dc->elementsPrefix.':'.$name
+                        )
+                );
+        $newElement->appendChild($doc->createTextNode($value));
+      }
+    }
+  }
+  
+
+  // handle the dc terms
+  foreach($terms as $name => $value) {
+    // Ignore empty fields
+    if($value != '') {
+      // We allow multiples of elements with commas
+      $values = explode('|', $value);
+      foreach($values as $value) {
+        $wrapper->appendChild(
+                $newElement = $doc->createElementNS(
+                        $dc->termsURI, 
+                        $dc->termsPrefix.':'.$name
+                        )
+                );
+        $newElement->appendChild($doc->createTextNode($value));
+      }
+    }
+  }
+  
+  return $doc->saveXML();
+}
+
+
+
+/**
+ * Returns a DOMDocument with a wrapper element containing the namespaces
+ * for dublin core elements and dublin core tersm.
+ * @return \DOMDocument 
+ */
+function _get_dublin_core_wrapper() {
+  
+  $dc = new DublinCore();
+  // Create the document for the descriptive metadata. Use a wrapper to collect
+  // the elements, which isn't technically required, but makes handling easier.
+  $doc = new DOMDocument('1.0', 'UTF-8');
+  $doc->appendChild($wrapper = $doc->createElement('wrapper'));
+  
+  // Add the dublin core namespaces to the wrapper.
+  $wrapper->setAttributeNS(
+          'http://www.w3.org/2000/xmlns/', 
+          'xmlns:'.$dc->elementsPrefix, 
+          $dc->elementsURI);
+  $wrapper->setAttributeNS(
+          'http://www.w3.org/2000/xmlns/', 
+          'xmlns:'.$dc->termsPrefix, 
+          $dc->termsURI);
+  
+  return $doc;
+}
+
+/**
+ * Gets the header meta for an xfdu file
+ * @param type $form_state
+ * @return type 
+ */
+function _get_XFDUheader_meta(&$form_state) {
+  $dc = new DublinCore();
+  $doc = new DOMDocument('1.0', 'UTF-8');
+  $doc = _get_dublin_core_wrapper();
+  $list = $doc->getElementsByTagName('wrapper');
+  $wrapper = $list->item(0);
+  
+  if($form_state['values']['curator'] != '') {
+    $curators = explode('|', $form_state['values']['curator']);
+    foreach($curators as $curator) {
+      $wrapper->appendChild(
+              $newElement = $doc->createElementNS(
+                      $dc->elementsURI, 
+                      $dc->elementsPrefix.':contributor')
+              );
+      $newElement->appendChild($doc->createTextNode($curator));
+    }
+  }
+  
+  if($form_state['values']['metaCreateDate'] != '') {
+      $wrapper->appendChild(
+              $newElement = $doc->createElementNS(
+                      $dc->termsURI, 
+                      $dc->termsPrefix.':created')
+              );
+      $newElement->appendChild(
+              $doc->createTextNode($form_state['values']['metaCreateDate'])
+              );
+  }
+  return $doc->saveXML();
+}
 ?>
