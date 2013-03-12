@@ -77,6 +77,6 @@ function curation_tool_admin_form_submit($form, &$form_state) {
   variable_set('data_curation_repository_location', $form_state['values']['data_curation_repository_root']);
   variable_set('data_curation_help_email', $form_state['values']['data_curation_help_email']);
   variable_set('data_curation_processor_url', $form_state['values']['data_curation_processor_url']);
-  drupal_set_message(t('The settings have been save.'));
+  drupal_set_message(t('The settings have been saved.'));
 }
 ?>

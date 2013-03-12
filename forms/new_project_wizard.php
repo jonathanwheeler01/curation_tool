@@ -1,9 +1,4 @@
 <?php
-
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 /*
  *    This file is part of curation_tool.
 
@@ -24,7 +19,24 @@
  * to upload and processing.
  *
  * @author Robert Olendorf <olendorf@unm.edu>
- *
+ * @license http://www.apache.org/licenses/LICENSE-2.0.html Aoache License, Version 2.0
+ * 
+ * NOTICE
+ * This file has been modified from the original. In particular, the function
+ * 'form_new_project_wizard_finish_submit' has been revised to make use
+ * of Drupal's native HTTP request handling. Also, Drupal database calls have been added
+ * to this function to handle inserting of project info to the 'curation_tool'
+ * table.
+ * 
+ * Additional minor edits include a checkbox in the 'form_new_project_info'
+ * function giving users the option to generate a single METS XML file per project
+ * or else generate a METS XML file per project directory. Default is currently
+ * set to generate a single file.
+ * 
+ * @todo Implement existing SimpleHTTP and Dublin Core wrapper methods.
+ * 
+ * Modifications authored by Jon Wheeler <jwheel01@unm.edu>
+ * 
  */
 
 /**
@@ -157,12 +169,73 @@ function form_new_project_wizard_finish_submit($form, &$form_state) {
     $form_state['values'] = array_merge($form_state['values'], $values);
   }
   
+  // drupal_set_message(t('Submitting values: @values', array('@values' => var_export($form_state['values'], TRUE))));
+  
+  $file = $form_state['storage']['file'];
+  $wrapper = implode('.', array_slice(explode('.', $file->filename), 0, -1));
+  
+  // Update the curation_tool table in the db
+  // First, get the UID of the current user
+  global $user;
+  $user_id = $user->uid;
+  
+  // Insert values into curation_tool table.
+  $cur_tool = db_insert('curation_tool')->fields(array(
+      'uid' => $user_id,
+      'name' => $wrapper,
+      'title' => $form_state['values']['title'],
+      ))
+      ->execute();
+  
+  // Get $form_state values for post data before passing to
+  // _handle_uploaded_data, which resets $form_state to
+  // an empty array.
+
+  $postData = array();
+  $postData['repository'] = variable_get('data_curation_repository_location');
+  $postData['root'] = $form_state['values']['username'] . '/' . $wrapper;
+  if ($form_state['values']['largeData'] == 1) {
+      $postData['multiXML'] = 'yes';
+  }
+  else {
+      $postData['multiXML'] = 'no';
+  }
+  $postData['creator'] = $form_state['values']['creator'];
+  $postData['contributor'] = $form_state['values']['contributor'];
+  $postData['title'] = $form_state['values']['title'];
+  $postData['subject'] = $form_state['values']['subject'];
+  $postData['description'] = $form_state['values']['description'];
+  $postData['abstract'] = $form_state['values']['abstract'];
+  //$postData['date'] = $form_state['values']['created'];
+  $postData['rights'] = $form_state['values']['license'] . ' ' . 
+          $form_state['values']['rights'];
+  //$postData['account'] = $form_state['values']['username']; 
+  //$postData['project'] = $form_state['project']['name'];
+  //$postData['xmlData'] = _get_XFDUheader_meta($form_state);
+  //$postData['descriptiveMetadata'] = _get_descriptive_meta($form_state);
+  
   if($form_state['values']['new_data'] == 'new') {
     _handle_uploaded_data($form_state);
   }
   
+  // Build the URL for post data.
+  // @todo Implement existing SimpleHTTP methods, in
+  // particular 'set_url'.
+
+  $data = 'repository=' . $postData['repository'] . '&' . 'root=' . $postData['root'] . 
+           '&' . 'multiXML=' . $postData['multiXML'] . '&' . 'creator=' . $postData['creator']
+           . '&' . 'contributor=' . $postData['contributor'] . '&' . 'title=' . $postData['title']
+           . '&' . 'subject=' . $postData['subject'] . '&' . 'description=' . $postData['description']
+           . '&' . 'abstract=' . $postData['abstract']
+           . '&' . 'rights=' . $postData['rights'];
   
+  $options = array(
+      'method' => 'POST',
+      'data'=> $data,
+      'headers' => array('Content-Type'=>'application/x-www-form-urlencoded'),
+  );
   
+  $result = drupal_http_request(variable_get('data_curation_processor_url'), $options);
 }
 
 /**
@@ -295,10 +368,18 @@ function form_new_project_info($form, &$form_state) {
       ), 
   );
   
+  // Provide an option to generate a single METS XML file for the project,
+  // rather than one per project directory.
+  
+  $form['data']['largeData'] = array(
+      '#type' => 'checkbox',
+      '#description' => 'Check here to generate multiple METS XML files for a large data set.',
+  );
+  
   $form['curator_info'] = array(
       '#type' => 'fieldset',
       '#title' => t('Curator Info'),
-      '#description' => t('Enter information about the curators and curatoin process here.'),
+      '#description' => t('Enter information about the curators and curation process here.'),
   );
   
   $form['curator_info']['curator'] = array(
@@ -644,7 +725,7 @@ function form_new_project_assurances_validate($form, &$form_state) {
 }
 
 function form_new_project_review($form, &$form_state) {
-  var_dump($form_state['page_values']);
+  //var_dump($form_state['page_values']);
     $form['markup'] = array(
         '#type' => 'markup',
         '#markup' => _format_data($form_state),
@@ -793,7 +874,7 @@ function _format_data($form_state) {
 function _handle_uploaded_data(&$form_state) {
 
   $userMessage = 'There was an error uploading your data. The geeks have been'.
-        'notified and unleashed! Please try again '.
+        ' notified and unleashed! Please try again '.
         'a few minutes. If the problem persists please '.
         '<a href = mailto:'.  variable_get('data_curation_help_email').
         'contact us </a>.';
@@ -819,6 +900,7 @@ function _handle_uploaded_data(&$form_state) {
   if(file_get_mimetype($destination.'/'.$file->filename) == 'application/zip') {
     $dirname = explode('.', $file->filename);
     $dirname = $dirname[0];
+    $form_state['project']['name'] = $destination. '/'.$dirname;
 
     if(!_unzip_file(variable_get('file_temporary_path').'/'.$file->filename, 
             $destination)) {
@@ -832,7 +914,7 @@ function _handle_uploaded_data(&$form_state) {
           __LINE__, 
           WATCHDOG_ERROR);
 
-          }
+          }          
   }
   else {
     
@@ -903,7 +985,7 @@ function _handle_error($formElement, $userMessage, $adminMessage, $line, $watchd
 function _rrmdir($dir) {
     foreach(glob($dir . '/*') as $file) {
         if(is_dir($file))
-            rrmdir($file);
+            rmdir($file);
         else
             unlink($file);
     }
@@ -919,7 +1001,7 @@ function _rrmdir($dir) {
 function _unzip_file($fileLocation, $destination) {
   print "zip location: ".$fileLocation;
   print '<br/>';
-  print "zip destiantion: ".$destination;
+  print "zip destination: ".$destination;
   $zip = new ZipArchive();
   $result = $zip->open($fileLocation);
   if($result == TRUE) {
@@ -1058,4 +1140,4 @@ function _get_XFDUheader_meta(&$form_state) {
   }
   return $doc->saveXML();
 }
-?>
+

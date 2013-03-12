@@ -223,7 +223,8 @@ class SimpleHTTPRequest {
               $postData
               );
       $this->add_headers(array(HTTPRequestHeaders::CONTENT_TYPE => 'application/x-www-form-urlencoded'));
-      return true;
+      //return true;
+      return $this;
     }
     else if( !is_array($postData) && (!is_array($this->postData) || empty($this->postData))) {
       if(empty($this->postData)) {

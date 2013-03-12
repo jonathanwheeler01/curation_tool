@@ -18,7 +18,7 @@ function curation_tool_enable() {
   variable_set('data_curation_help_email', variable_get('site_mail'));
   
   // Create the database table(s)
-  drupal_install_schema('curation_tool');
+  //drupal_install_schema('curation_tool');
     
   // Get the fields and field instances from the utility funcitons
   $fields = _custom_user_fields();
@@ -280,4 +280,3 @@ function _custom_user_instances() {
       );
   return $instances;
 }
-?>

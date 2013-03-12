@@ -88,7 +88,7 @@ function new_project_form_page_1($form, &$form_state) {
   $form['curator_info'] = array(
       '#type' => 'fieldset',
       '#title' => t('Curator Info'),
-      '#description' => t('Enter information about the curators and curatoin process here.'),
+      '#description' => t('Enter information about the curators and curation process here.'),
   );
 
   // If the curators have been specified previously use them. Otherwise
@@ -721,20 +721,20 @@ function new_project_form_page_4_submit($form, &$form_state){
   
   _handle_uploaded_data($form_state);
   
-//  $postData = array();
-//  $postData['repository'] = variable_get('data_curation_repository_location');
-//  $postData['account'] = $form_state['values']['username']; 
-//  $postData['project'] = $form_state['project']['name'];
-//  $postData['xmlData'] = _get_header_meta($form_state);
-//  $postData['descriptiveMetadata'] = _get_descriptive_meta($form_state);
+  $postData = array();
+  $postData['repository'] = variable_get('data_curation_repository_location');
+  //$postData['account'] = $form_state['values']['username']; 
+  //$postData['project'] = $form_state['project']['name'];
+  //$postData['xmlData'] = _get_header_meta($form_state);
+  //$postData['descriptiveMetadata'] = _get_descriptive_meta($form_state);
   
-  // Right now this just sends a blind request and assumes it works. This should
-  // be fixed.
-//  $request = new SimpleHTTPRequest();
-//  $response = $request->set_url(variable_get('data_curation_processor_url'))
-//          ->set_method('POST')
-//          ->add_headers(array('content-type'=>'application/x-www-form-urlencoded'))
-//          ->send_request();
+   // Right now this just sends a blind request and assumes it works. This should
+   // be fixed.
+  $request = new SimpleHTTPRequest();
+  $response = $request->set_url(variable_get('data_curation_processor_url'))
+          ->set_method('POST')
+          ->add_headers(array('content-type'=>'application/x-www-form-urlencoded'))
+          ->send_request();
   
 }
 

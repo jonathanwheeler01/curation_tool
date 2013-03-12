@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Primary module for the curatoin tool package which serves as a front end for
+ * Primary module for the curation tool package which serves as a front end for
  * the data curation class libarary.
  * 
  * @author Robert Olendorf
@@ -59,9 +59,9 @@ function curation_tool_menu() {
       'title' => 'Descriptive Metadata.',
       'description' => 'Create descriptive metadata for the project using '.
                         'the Qualified Dublin Core vocabulary.',
-      'file' => 'project_forms.php',
+      'file' => 'project_form.php',
       'page callback' => 'drupal_get_form',
-      'page arguments' => array('project_metadata_form'),
+      'page arguments' => array('project_form'),
       'access callback' => TRUE,
       'type' => MENU_CALLBACK,
   );
@@ -104,4 +104,3 @@ function curation_tool_permission() {
       ),
   );
 }
-?>
