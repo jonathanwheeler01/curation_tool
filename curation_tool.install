@@ -1,4 +1,18 @@
 <?php
+/* 
+ *    This file is part of curation_tool.
+
+ *    curation_tool is free software: you can redistribute it and/or modify
+ *    it under the terms of the Apache License, Version 2.0 (See License at the
+ *    top of the directory).
+
+ *    curation_tool is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+ *    You should have received a copy of the Apache License, Version 2.0
+ *    along with data_curation.  If not, see <http://www.apache.org/licenses/LICENSE-2.0.html>.
+ */
   /**
    * Install function for curation tool.
    * 

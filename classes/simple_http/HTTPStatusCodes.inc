@@ -1,5 +1,19 @@
 <?php
 class HTTPStatusCodes {
+    /* 
+ *    This file is part of simple_http.
+
+ *    simple_http is free software: you can redistribute it and/or modify
+ *    it under the terms of the Apache License, Version 2.0 (See License at the
+ *    top of the directory).
+
+ *    simple_http is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+ *    You should have received a copy of the Apache License, Version 2.0
+ *    along with simple_http.  If not, see <http://www.apache.org/licenses/LICENSE-2.0.html>.
+ */
   /**
  * Just a bunch of constants to help in choosing an HTTP Response code.
  * The information is pretty much all from 
